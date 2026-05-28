@@ -21,7 +21,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
-  "build>=1.0"
+  "build>=1.0",
+  "wheel>=0.42"
 ]
 
 [project.scripts]

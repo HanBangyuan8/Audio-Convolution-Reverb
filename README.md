@@ -1,8 +1,13 @@
 # Audio Convolution Reverb
 
-A complete portfolio-ready convolution reverb tool based on the original notebook code.
+![macOS](https://img.shields.io/badge/macOS-10.15%2B-blue?style=flat)
+![Python](https://img.shields.io/badge/Python-3.10%2B-147EFB?style=flat)
+![SciPy](https://img.shields.io/badge/SciPy-1.10%2B-orange?style=flat)
+![GitHub release](https://img.shields.io/github/v/release/HanBangyuan8/Audio-Convolution-Reverb?style=flat)
+![GitHub Downloads](https://img.shields.io/github/downloads/HanBangyuan8/Audio-Convolution-Reverb/total?style=flat)
+![GitHub Repo stars](https://img.shields.io/github/stars/HanBangyuan8/Audio-Convolution-Reverb?style=flat)
 
-The project turns a recorded sine sweep into an impulse response, analyzes the room response, and applies convolution reverb to any dry audio file. It includes a command line app, a small desktop GUI, sample audio, tests, and release packaging.
+A desktop and command line convolution reverb tool built from the original portfolio notebook.
 
 ## Features
 
@@ -14,15 +19,14 @@ The project turns a recorded sine sweep into an impulse response, analyzes the r
 - Run from CLI or a lightweight desktop GUI
 - Works with common audio files supported by `soundfile`
 
-## Project Layout
+## Requirements
 
-```text
-src/audio_convolution_reverb/   Python package and app code
-examples/audio/                 Example dry audio, recordings, and impulse responses
-notebooks/                      Original notebook source
-tests/                          Regression tests
-scripts/                        Release helper scripts
-```
+### Latest Version
+
+- macOS 10.15+ for the included Tkinter desktop GUI
+- Python 3.10+
+- NumPy, SciPy, SoundFile, and Matplotlib
+- Example audio files are included for demo rendering and impulse-response extraction
 
 ## Install
 
@@ -32,15 +36,15 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-## Use the GUI
+## Run
+
+Launch the desktop GUI:
 
 ```bash
 audio-reverb-gui
 ```
 
-Choose a dry audio file, choose an impulse response file, set dry/wet levels, then render a new WAV file.
-
-## Use the CLI
+Use the CLI:
 
 Generate a sweep:
 
@@ -66,33 +70,53 @@ Analyze an impulse response:
 audio-reverb analyze examples/audio/bedroom_ir.wav --name Bedroom --output output/bedroom_analysis.png
 ```
 
-Run the bundled demo:
+Run the bundled example render:
 
 ```bash
 audio-reverb demo
 ```
 
+## Build
+
+```bash
+python3 -m py_compile src/audio_convolution_reverb/*.py tests/*.py
+pytest
+```
+
+## Package
+
+```bash
+./scripts/package_release.sh
+open dist/Audio-Convolution-Reverb-v1.0.0.zip
+```
+
 ## Original Work
 
-The original notebook is kept at `notebooks/original_convolution_reverb.ipynb`. The reusable Python module keeps the same core function names and formulas from that notebook:
+The original notebook is kept at `notebooks/original_convolution_reverb.ipynb`. The reusable Python module keeps the same core function names and formulas:
 
 - `generate_log_sweep`
 - `extract_impulse_response`
 - `apply_convolution_reverb`
 - `analyze_impulse_response`
 
-Small production improvements were added around those functions: path handling, sample-rate matching, stereo support, CLI/GUI entry points, and safer output normalization.
+Production improvements were added around those functions: path handling, sample-rate matching, stereo support, CLI/GUI entry points, and safer output normalization.
 
-## Test
+## Release
 
-```bash
-pytest
-```
+Download v1.0.0 and newer source packages from [GitHub Releases](https://github.com/HanBangyuan8/Audio-Convolution-Reverb/releases).
 
-## Build a Release Package
+Release notes are maintained in `CHANGELOG.md`.
 
-```bash
-scripts/package_release.sh
-```
+## License
 
-This creates a source distribution and a Git archive zip in `dist/`.
+MIT License. See [LICENSE](LICENSE).
+
+## Star History
+
+<a href="https://www.star-history.com/?type=date&repos=HanBangyuan8%2FAudio-Convolution-Reverb">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=HanBangyuan8/Audio-Convolution-Reverb&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=HanBangyuan8/Audio-Convolution-Reverb&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=HanBangyuan8/Audio-Convolution-Reverb&type=date&legend=top-left" />
+ </picture>
+</a>
