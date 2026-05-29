@@ -7,7 +7,6 @@ struct StudioView: View {
     @StateObject private var model = StudioViewModel()
 
     private var palette: Palette { Palette(colorScheme) }
-    private let mainContentWidth: CGFloat = 980
 
     var body: some View {
         NavigationSplitView {
@@ -28,21 +27,18 @@ struct StudioView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Audio Convolution")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                    Text("Reverb Studio")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    Text("Convolution Reverb")
+                        .font(.headline)
+                    Text("Audio Engineering Studio")
+                        .font(.caption)
                         .foregroundStyle(palette.accent)
                 }
                 .padding(.vertical, 6)
             }
 
-            Section {
-                HStack(spacing: 10) {
-                    StatTile(title: "History", value: "\(model.renders.count)", palette: palette)
-                    StatTile(title: "Presets", value: "\(model.presets.count)", palette: palette)
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+            Section("Library") {
+                Label("\(model.renders.count) renders", systemImage: "clock")
+                Label("\(model.presets.count) presets", systemImage: "slider.horizontal.3")
             }
 
             Section {
@@ -74,13 +70,7 @@ struct StudioView: View {
                     }
                 }
             } header: {
-                HStack {
-                    Text("Presets")
-                    Spacer()
-                    Button(action: model.importPresets) { Image(systemName: "square.and.arrow.down") }
-                    Button(action: model.exportPresets) { Image(systemName: "square.and.arrow.up") }
-                }
-                .buttonStyle(.borderless)
+                Text("Presets")
             }
 
             Section("Recent Renders") {
@@ -115,7 +105,7 @@ struct StudioView: View {
                     Text(model.status)
                         .font(.caption)
                         .foregroundStyle(model.isRendering ? palette.accent : palette.secondaryText)
-                        .lineLimit(4)
+                        .lineLimit(3)
                 }
             }
         }
@@ -125,65 +115,129 @@ struct StudioView: View {
     }
 
     private var mainPanel: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 18) {
-                hero
-                transportPanel(width: mainContentWidth)
-                filePanel(width: mainContentWidth)
-                visualizationPanel(width: mainContentWidth)
-                settingsPanel(width: mainContentWidth)
-                professionalPanel(width: mainContentWidth)
-                customImpulsePanel(width: mainContentWidth)
-                actionPanel(width: mainContentWidth)
+        GeometryReader { geometry in
+            let horizontalPadding: CGFloat = 44
+            let contentWidth = max(1, geometry.size.width - horizontalPadding)
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Color.clear
+                            .frame(height: 1)
+                            .id("mainTop")
+                        sessionHeader
+                        filePanel(width: contentWidth)
+                        transportPanel(width: contentWidth)
+                        visualizationPanel(width: contentWidth)
+                        settingsPanel(width: contentWidth)
+                        professionalPanel(width: contentWidth)
+                        customImpulsePanel(width: contentWidth)
+                        actionPanel(width: contentWidth)
+                    }
+                    .padding(.top, 18)
+                    .padding(.horizontal, horizontalPadding / 2)
+                    .padding(.bottom, 22)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    for delay in [0.0, 0.15, 0.35] {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                            proxy.scrollTo("mainTop", anchor: .top)
+                        }
+                    }
+                }
             }
-            .padding(28)
-            .frame(width: mainContentWidth, alignment: .topLeading)
         }
-        .frame(minWidth: mainContentWidth, maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
     }
 
-    private var hero: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Convolution reverb, from captured spaces to designed spaces.")
-                .font(.system(size: 33, weight: .bold, design: .rounded))
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Import WAV, AIFF, CAF, or M4A. Preview, compare, visualize, render, and keep every useful preset or output in SQLite history.")
-                .font(.title3)
-                .foregroundStyle(palette.secondaryText)
+    private var sessionHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Studio Session")
+                    .font(.title3.weight(.semibold))
+                Text("Import, preview, visualize, and render convolution reverb.")
+                    .font(.caption)
+                    .foregroundStyle(palette.secondaryText)
+            }
+            Spacer()
+            Text(model.isRendering ? "Rendering" : "Ready")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(model.isRendering ? palette.accent.opacity(0.16) : palette.panel, in: Capsule())
+                .foregroundStyle(model.isRendering ? palette.accent : palette.secondaryText)
         }
+        .padding(.horizontal, 2)
+        .padding(.bottom, 2)
     }
 
     private func transportPanel(width: CGFloat) -> some View {
         StudioSection(title: "Playback and A/B", palette: palette) {
-            FlowLayout(spacing: 12) {
-                Picker("Target", selection: $model.playbackTarget) {
-                    ForEach(PlaybackTarget.allCases) { target in
-                        Text(target.rawValue).tag(target)
+            ViewThatFits(in: .horizontal) {
+                transportControls
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        playbackPicker
+                        playButton
+                        stopButton
+                        abButton
                     }
+                    SliderRow(title: "Preview", value: $model.previewSeconds, range: 2...30, suffix: " s", palette: palette)
                 }
-                .pickerStyle(.segmented)
-                .frame(minWidth: 240, idealWidth: 300, maxWidth: 340)
-
-                Button(action: model.playSelected) {
-                    Label(model.isPlaying ? "Restart" : "Play", systemImage: "play.fill")
-                }
-                .buttonStyle(PrimaryButtonStyle(palette: palette))
-
-                Button(action: model.stopPlayback) {
-                    Label("Stop", systemImage: "stop.fill")
-                }
-                .buttonStyle(SecondaryButtonStyle(palette: palette))
-
-                Button(action: model.abToggle) {
-                    Label("A/B", systemImage: "arrow.left.arrow.right")
-                }
-                .buttonStyle(SecondaryButtonStyle(palette: palette))
-
-                SliderRow(title: "Preview", value: $model.previewSeconds, range: 2...30, suffix: " s", palette: palette)
-                    .frame(minWidth: 240, idealWidth: 300, maxWidth: width < 900 ? .infinity : 340)
             }
         }
+    }
+
+    private var transportControls: some View {
+        HStack(spacing: 10) {
+            playbackPicker
+            playButton
+            stopButton
+            abButton
+            Spacer(minLength: 14)
+            SliderRow(title: "Preview", value: $model.previewSeconds, range: 2...30, suffix: " s", palette: palette)
+                .frame(width: 300)
+        }
+    }
+
+    private var playbackPicker: some View {
+        HStack(spacing: 8) {
+            Text("Target")
+            Picker("Target", selection: $model.playbackTarget) {
+                ForEach(PlaybackTarget.allCases) { target in
+                    Text(target.rawValue).tag(target)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 260)
+        }
+    }
+
+    private var playButton: some View {
+        Button(action: model.playSelected) {
+            Label(model.isPlaying ? "Restart" : "Play", systemImage: "play.fill")
+        }
+        .buttonStyle(PrimaryButtonStyle(palette: palette))
+        .frame(width: 96)
+    }
+
+    private var stopButton: some View {
+        Button(action: model.stopPlayback) {
+            Label("Stop", systemImage: "stop.fill")
+        }
+        .buttonStyle(SecondaryButtonStyle(palette: palette))
+        .frame(width: 82)
+    }
+
+    private var abButton: some View {
+        Button(action: model.abToggle) {
+            Label("A/B", systemImage: "arrow.left.arrow.right")
+        }
+        .buttonStyle(SecondaryButtonStyle(palette: palette))
+        .frame(width: 76)
     }
 
     private func filePanel(width: CGFloat) -> some View {
@@ -215,12 +269,15 @@ struct StudioView: View {
                     action: model.chooseOutput
                 )
 
-                FlowLayout(spacing: 12) {
+                HStack {
+                    Spacer()
+                    Text("Format")
                     Picker("Format", selection: $model.exportFormat) {
                         ForEach(ExportFormat.allCases) { format in
                             Text(format.rawValue).tag(format)
                         }
                     }
+                    .labelsHidden()
                     .pickerStyle(.segmented)
                     .frame(width: 210)
                 }
@@ -292,38 +349,46 @@ struct StudioView: View {
                 Label("Generate Custom IR", systemImage: "sparkles")
             }
             .buttonStyle(PrimaryButtonStyle(palette: palette))
+            .frame(width: 180, alignment: .leading)
         }
     }
 
     private func actionPanel(width: CGFloat) -> some View {
-        FlowLayout(spacing: 12) {
+        HStack(spacing: 10) {
             Button(action: model.renderPreview) {
                 Label("Preview", systemImage: "bolt.fill")
             }
             .buttonStyle(SecondaryButtonStyle(palette: palette))
+            .frame(width: 116)
             .disabled(model.isRendering)
 
             Button(action: model.render) {
                 Label(model.isRendering ? "Rendering..." : "Render", systemImage: "wand.and.stars")
             }
             .buttonStyle(PrimaryButtonStyle(palette: palette))
+            .frame(width: 116)
             .disabled(model.isRendering)
 
             Button(action: model.cancelRender) {
                 Label("Cancel", systemImage: "xmark.circle")
             }
             .buttonStyle(SecondaryButtonStyle(palette: palette))
+            .frame(width: 116)
             .disabled(!model.isRendering)
 
             Button(action: model.saveCurrentPreset) {
                 Label("Save Preset", systemImage: "bookmark")
             }
             .buttonStyle(SecondaryButtonStyle(palette: palette))
+            .frame(width: 132)
 
             Button(action: model.openOutputFolder) {
                 Label("Reveal Output", systemImage: "folder")
             }
             .buttonStyle(SecondaryButtonStyle(palette: palette))
+            .frame(width: 132)
+
+            Spacer()
         }
     }
 
@@ -342,9 +407,9 @@ private struct Palette {
     }
 
     var background: Color { Color(nsColor: .windowBackgroundColor) }
-    var sidebar: Color { scheme == .dark ? Color.black.opacity(0.28) : Color(nsColor: .controlBackgroundColor) }
-    var panel: Color { scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045) }
-    var panelStrong: Color { scheme == .dark ? Color.white.opacity(0.11) : Color.white }
+    var sidebar: Color { Color(nsColor: .controlBackgroundColor) }
+    var panel: Color { scheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.035) }
+    var panelStrong: Color { Color(nsColor: .controlBackgroundColor) }
     var primaryText: Color { Color(nsColor: .labelColor) }
     var secondaryText: Color { Color(nsColor: .secondaryLabelColor) }
     var accent: Color { scheme == .dark ? .cyan : .blue }
@@ -357,13 +422,14 @@ private struct StudioSection<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.title3.weight(.semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.headline)
             content
         }
-        .padding(18)
-        .background(palette.panel, in: RoundedRectangle(cornerRadius: 8))
+        .padding(14)
+        .background(palette.panelStrong, in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(palette.stroke))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -390,24 +456,23 @@ private struct FileDropRow: View {
     var action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                Label(title, systemImage: icon)
-                    .font(.headline)
-                Spacer(minLength: 12)
-                Button("Choose", action: action)
-                    .buttonStyle(SecondaryButtonStyle(palette: palette))
-            }
-
+        HStack(spacing: 12) {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 160, alignment: .leading)
             Text(value)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(palette.secondaryText)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            Spacer(minLength: 12)
+            Button("Choose", action: action)
+                .buttonStyle(SecondaryButtonStyle(palette: palette))
+                .frame(width: 82)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(palette.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+        .padding(10)
+        .background(palette.background, in: RoundedRectangle(cornerRadius: 7))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(palette.stroke))
     }
 }
@@ -513,7 +578,7 @@ private struct AnalysisCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.headline)
             WaveformView(peaks: analysis?.waveform.peaks ?? [], palette: palette)
-                .frame(height: 82)
+                .frame(height: 54)
             HStack {
                 Text("Peak \(analysis?.waveform.peak ?? 0, specifier: "%.2f")")
                 Spacer()
@@ -539,7 +604,7 @@ private struct SpectrumCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.headline)
             SpectrumView(points: analysis?.spectrum ?? [], palette: palette)
-                .frame(height: 120)
+                .frame(height: 78)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
@@ -556,7 +621,7 @@ private struct DecayCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.headline)
             DecayView(values: analysis?.decay ?? [], palette: palette)
-                .frame(height: 120)
+                .frame(height: 78)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
@@ -669,9 +734,11 @@ private struct PrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .padding(.horizontal, 10)
             .background(configuration.isPressed ? palette.accent.opacity(0.75) : palette.accent, in: RoundedRectangle(cornerRadius: 8))
             .foregroundStyle(.white)
     }
@@ -683,8 +750,10 @@ private struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .padding(.horizontal, 10)
             .background(configuration.isPressed ? palette.panel.opacity(0.6) : palette.panel, in: RoundedRectangle(cornerRadius: 8))
             .foregroundStyle(palette.primaryText)
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(palette.stroke))

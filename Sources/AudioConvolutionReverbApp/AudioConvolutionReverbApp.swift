@@ -7,12 +7,11 @@ struct AudioConvolutionReverbApp: App {
     var body: some Scene {
         WindowGroup {
             StudioView()
-                .frame(minWidth: 1360, minHeight: 680)
+                .frame(minWidth: 1040, minHeight: 680)
                 .sheet(isPresented: $showingAbout) {
                     AboutView()
                 }
         }
-        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About Audio Convolution Reverb") {

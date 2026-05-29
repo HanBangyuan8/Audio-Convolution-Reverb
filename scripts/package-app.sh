@@ -86,7 +86,16 @@ clean_bundle_metadata "$DMG_ROOT"
 hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}.dmg"
 ditto --norsrc "$APP_DIR" "$FINAL_APP_DIR"
 clean_bundle_metadata "$FINAL_APP_DIR"
-codesign --verify --deep --strict --verbose=2 "$FINAL_APP_DIR"
+for attempt in 1 2 3; do
+  if codesign --verify --deep --strict --verbose=2 "$FINAL_APP_DIR"; then
+    break
+  fi
+  sleep 1
+  clean_bundle_metadata "$FINAL_APP_DIR"
+  if [[ "$attempt" == "3" ]]; then
+    codesign --verify --deep --strict --verbose=2 "$FINAL_APP_DIR"
+  fi
+done
 
 echo "Packaged:"
 ls -lh "$DIST_DIR"

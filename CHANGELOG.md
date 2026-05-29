@@ -8,7 +8,7 @@ Major release.
 - Added in-app playback for dry, rendered, and impulse response files with A/B switching.
 - Added preview rendering for short near-real-time auditioning.
 - Added waveform, frequency response, decay, and level visualizations.
-- Rebuilt the studio layout with a native macOS sidebar, fixed-width main workspace, and reliable vertical scrolling.
+- Rebuilt the studio layout with a native macOS sidebar, compact top bar, full-width main workspace, aligned controls, and reliable vertical scrolling.
 - Added drag-and-drop import for dry audio and impulse response files.
 - Added AVFoundation-based WAV, AIFF, CAF, and M4A input plus WAV, AIFF, and CAF export.
 - Added render progress, cancellation, and clearer error recovery.
