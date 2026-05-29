@@ -20,6 +20,10 @@ A native macOS convolution reverb studio with a SwiftUI front end, Swift FFT aud
 - Run as a polished SwiftUI macOS app or from Swift/Python CLIs
 - Preserve the original notebook implementation in split Python source files
 
+## Screenshots
+
+<img src="screenshot1.png" alt="Audio Convolution Reverb app" width="900">
+
 ## Early Test Results
 
 These two images were extracted from the original notebook and kept as early portfolio output.
