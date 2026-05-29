@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.1 - 2026-05-30
+
+Patch release.
+
+- Refined the macOS studio interface with a compact top bar, native sidebar cleanup, aligned buttons, and full-width detail layout.
+- Fixed clipped right-side content by removing hard minimum detail widths and fitting panels to the available column width.
+- Removed duplicate picker labels in the playback and export controls.
+- Improved app packaging reliability by retrying final bundle metadata cleanup before signature verification.
+
 ## v1.1.0 - 2026-05-29
 
 Major release.

@@ -44,7 +44,7 @@ private struct AboutView: View {
                 .foregroundStyle(.blue)
             Text("Audio Convolution Reverb")
                 .font(.title.bold())
-            Text("Version 1.1.0")
+            Text("Version 1.1.1")
                 .foregroundStyle(.secondary)
             Text("A native macOS audio engineering app for impulse response extraction, convolution reverb design, preview, visualization, and render management.")
                 .multilineTextAlignment(.center)
