@@ -22,6 +22,7 @@ audio-reverb-swift commands:
   extract-ir <recorded.wav> <sweep.wav> <output-ir.wav> [length]
   apply <dry.wav> <ir.wav> <output.wav> [wet] [dry]
   custom-ir <output.wav> [duration] [decay] [tone]
+  convert <input> <output.wav|output.aiff|output.caf>
   inspect <audio.wav>
 
 The Python CLI from the original notebook remains available as audio-reverb.
@@ -43,28 +44,29 @@ func run(_ arguments: [String]) throws {
         guard arguments.count >= 3 else { throw CLIError.usage }
         let duration = arguments.double(at: 3) ?? 10
         let sampleRate = arguments.int(at: 4) ?? 48_000
+        let output = URL(fileURLWithPath: arguments[2])
         let buffer = ReverbDSP.generateLogSweep(duration: duration, sampleRate: sampleRate)
-        try WAVAudioIO.write(buffer, to: URL(fileURLWithPath: arguments[2]), bitDepth: 24)
+        try AVAudioConverterIO.write(buffer, to: output)
         print("Generated sweep: \(arguments[2])")
 
     case "extract-ir":
         guard arguments.count >= 5 else { throw CLIError.usage }
-        let recorded = try WAVAudioIO.read(from: URL(fileURLWithPath: arguments[2]))
-        let sweep = try WAVAudioIO.read(from: URL(fileURLWithPath: arguments[3]))
+        let recorded = try AVAudioConverterIO.read(from: URL(fileURLWithPath: arguments[2]))
+        let sweep = try AVAudioConverterIO.read(from: URL(fileURLWithPath: arguments[3]))
         let length = arguments.double(at: 5) ?? 10
         let ir = ReverbDSP.extractImpulseResponse(recorded: recorded, sweep: sweep, irLength: length)
-        try WAVAudioIO.write(ir, to: URL(fileURLWithPath: arguments[4]), bitDepth: 24)
+        try AVAudioConverterIO.write(ir, to: URL(fileURLWithPath: arguments[4]))
         print("Extracted impulse response: \(arguments[4])")
 
     case "apply":
         guard arguments.count >= 5 else { throw CLIError.usage }
-        let dry = try WAVAudioIO.read(from: URL(fileURLWithPath: arguments[2]))
-        let ir = try WAVAudioIO.read(from: URL(fileURLWithPath: arguments[3]))
+        let dry = try AVAudioConverterIO.read(from: URL(fileURLWithPath: arguments[2]))
+        let ir = try AVAudioConverterIO.read(from: URL(fileURLWithPath: arguments[3]))
         var settings = ReverbSettings()
         settings.wetLevel = arguments.double(at: 5) ?? 0.5
         settings.dryLevel = arguments.double(at: 6) ?? 0.5
         let rendered = ReverbDSP.applyConvolutionReverb(dry: dry, impulseResponse: ir, settings: settings)
-        try WAVAudioIO.write(rendered, to: URL(fileURLWithPath: arguments[4]), bitDepth: 24)
+        try AVAudioConverterIO.write(rendered, to: URL(fileURLWithPath: arguments[4]))
         print("Rendered: \(arguments[4])")
 
     case "custom-ir":
@@ -73,12 +75,18 @@ func run(_ arguments: [String]) throws {
         let decay = arguments.double(at: 4) ?? 4.2
         let tone = arguments.double(at: 5) ?? 0.55
         let ir = ReverbDSP.createCustomImpulse(sampleRate: 48_000, duration: duration, decay: decay, tone: tone, earlyReflectionCount: 10)
-        try WAVAudioIO.write(ir, to: URL(fileURLWithPath: arguments[2]), bitDepth: 24)
+        try AVAudioConverterIO.write(ir, to: URL(fileURLWithPath: arguments[2]))
         print("Generated custom IR: \(arguments[2])")
+
+    case "convert":
+        guard arguments.count >= 4 else { throw CLIError.usage }
+        let audio = try AVAudioConverterIO.read(from: URL(fileURLWithPath: arguments[2]))
+        try AVAudioConverterIO.write(audio, to: URL(fileURLWithPath: arguments[3]))
+        print("Converted: \(arguments[3])")
 
     case "inspect":
         guard arguments.count >= 3 else { throw CLIError.usage }
-        let audio = try WAVAudioIO.read(from: URL(fileURLWithPath: arguments[2]))
+        let audio = try AVAudioConverterIO.read(from: URL(fileURLWithPath: arguments[2]))
         print("channels=\(audio.channelCount) sampleRate=\(audio.sampleRate) frames=\(audio.frameCount) duration=\(String(format: "%.3f", audio.duration))")
 
     default:

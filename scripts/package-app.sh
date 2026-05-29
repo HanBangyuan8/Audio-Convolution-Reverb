@@ -6,17 +6,24 @@ cd "$ROOT_DIR"
 
 APP_NAME="Audio Convolution Reverb"
 BUNDLE_ID="com.hanbangyuan.audio-convolution-reverb"
+VERSION="1.1.0"
 DIST_DIR="$ROOT_DIR/dist"
-APP_DIR="$DIST_DIR/$APP_NAME.app"
+STAGE_DIR="/tmp/audio-convolution-reverb-package"
+APP_DIR="$STAGE_DIR/$APP_NAME.app"
+FINAL_APP_DIR="$DIST_DIR/$APP_NAME.app"
 
-rm -rf "$APP_DIR"
+rm -rf "$APP_DIR" "$FINAL_APP_DIR" "$STAGE_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
+mkdir -p "$DIST_DIR"
 
 swift build -c release --arch arm64 --arch x86_64
 BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 
 cp "$BIN_PATH/$APP_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
 cp "$BIN_PATH/audio-reverb-swift" "$DIST_DIR/audio-reverb-swift"
+if [[ -f "$ROOT_DIR/assets/AppIcon.icns" ]]; then
+  cp "$ROOT_DIR/assets/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+fi
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -34,9 +41,11 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.0.0</string>
+  <string>$VERSION</string>
   <key>CFBundleVersion</key>
   <string>1</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>NSHighResolutionCapable</key>
@@ -46,13 +55,15 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 PLIST
 
 echo "APPL????" > "$APP_DIR/Contents/PkgInfo"
-xattr -rc "$APP_DIR"
+find "$APP_DIR" -exec xattr -c {} \; 2>/dev/null || true
 codesign --force --deep --sign - "$APP_DIR"
-xattr -rc "$APP_DIR"
+find "$APP_DIR" -exec xattr -c {} \; 2>/dev/null || true
 codesign --force --deep --sign - "$APP_DIR"
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 
-ditto -c -k --keepParent "$APP_DIR" "$DIST_DIR/Audio-Convolution-Reverb-v1.0.0-macOS-universal.zip"
+ditto -c -k --keepParent "$APP_DIR" "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}-macOS-universal.zip"
+hdiutil create -volname "$APP_NAME" -srcfolder "$APP_DIR" -ov -format UDZO "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}.dmg"
+ditto "$APP_DIR" "$FINAL_APP_DIR"
 
 echo "Packaged:"
 ls -lh "$DIST_DIR"

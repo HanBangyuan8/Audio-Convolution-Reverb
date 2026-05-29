@@ -17,6 +17,9 @@ A native macOS convolution reverb studio with a SwiftUI front end, Swift FFT aud
 - Mix dry/wet levels, pre-delay, decay shaping, low cut, high cut, reverse bloom, and output normalization
 - Create a custom convolution reverb impulse response from duration, decay, tone, and early reflections
 - Save presets and render history to a local SQLite database
+- Preview dry/rendered/IR audio inside the app with A/B switching
+- Visualize waveform, frequency response, energy decay, and input/output levels
+- Drag-and-drop WAV, AIFF, CAF, and M4A audio files
 - Run as a polished SwiftUI macOS app or from Swift/Python CLIs
 - Preserve the original notebook implementation in split Python source files
 
@@ -82,6 +85,12 @@ Create a custom convolution reverb:
 swift run audio-reverb-swift custom-ir output/custom-ir.wav 2.8 4.2 0.55
 ```
 
+Convert audio format:
+
+```bash
+swift run audio-reverb-swift convert examples/audio/dry_vocal.wav output/dry_vocal.aiff
+```
+
 The Python CLI is still available for the original notebook workflow:
 
 ```bash
@@ -97,6 +106,8 @@ audio-reverb demo
 ./scripts/package-app.sh
 open "dist/Audio Convolution Reverb.app"
 ```
+
+The app package script creates a universal macOS `.app`, a signed zip archive, and a DMG image.
 
 Python source and wheel artifacts:
 

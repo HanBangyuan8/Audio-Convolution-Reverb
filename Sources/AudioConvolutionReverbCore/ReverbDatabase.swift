@@ -45,9 +45,25 @@ public final class ReverbDatabase: @unchecked Sendable {
     }
 
     public func renders(limit: Int = 30) throws -> [RenderRecord] {
-        let sql = "SELECT id, name, created_at, dry_path, impulse_path, output_path, settings_json, sample_rate, duration FROM renders ORDER BY created_at DESC LIMIT ?;"
+        try renders(search: "", limit: limit)
+    }
+
+    public func renders(search: String, limit: Int = 100) throws -> [RenderRecord] {
+        let sql = """
+        SELECT id, name, created_at, dry_path, impulse_path, output_path, settings_json, sample_rate, duration
+        FROM renders
+        WHERE ? = '' OR name LIKE ? OR dry_path LIKE ? OR impulse_path LIKE ? OR output_path LIKE ?
+        ORDER BY created_at DESC
+        LIMIT ?;
+        """
         return try query(sql, bind: { statement in
-            bind(Int64(limit), to: statement, at: 1)
+            let pattern = "%\(search)%"
+            bind(search, to: statement, at: 1)
+            bind(pattern, to: statement, at: 2)
+            bind(pattern, to: statement, at: 3)
+            bind(pattern, to: statement, at: 4)
+            bind(pattern, to: statement, at: 5)
+            bind(Int64(limit), to: statement, at: 6)
         }) { statement in
             let json = text(statement, 6).data(using: .utf8) ?? Data()
             let settings = (try? decoder.decode(ReverbSettings.self, from: json)) ?? ReverbSettings()
@@ -65,6 +81,19 @@ public final class ReverbDatabase: @unchecked Sendable {
         }
     }
 
+    public func deleteRender(id: Int64) throws {
+        try execute("DELETE FROM renders WHERE id = ?;") { statement in
+            bind(id, to: statement, at: 1)
+        }
+    }
+
+    public func renameRender(id: Int64, name: String) throws {
+        try execute("UPDATE renders SET name = ? WHERE id = ?;") { statement in
+            bind(name, to: statement, at: 1)
+            bind(id, to: statement, at: 2)
+        }
+    }
+
     public func savePreset(_ preset: ReverbPreset) throws -> Int64 {
         let sql = "INSERT INTO presets (name, created_at, settings_json) VALUES (?, ?, ?);"
         try execute(sql) { statement in
@@ -76,7 +105,20 @@ public final class ReverbDatabase: @unchecked Sendable {
     }
 
     public func presets() throws -> [ReverbPreset] {
-        try query("SELECT id, name, created_at, settings_json FROM presets ORDER BY created_at DESC;") { statement in
+        try presets(search: "")
+    }
+
+    public func presets(search: String) throws -> [ReverbPreset] {
+        let sql = """
+        SELECT id, name, created_at, settings_json
+        FROM presets
+        WHERE ? = '' OR name LIKE ?
+        ORDER BY created_at DESC;
+        """
+        return try query(sql, bind: { statement in
+            bind(search, to: statement, at: 1)
+            bind("%\(search)%", to: statement, at: 2)
+        }) { statement in
             let json = text(statement, 3).data(using: .utf8) ?? Data()
             let settings = (try? decoder.decode(ReverbSettings.self, from: json)) ?? ReverbSettings()
             return ReverbPreset(
@@ -85,6 +127,33 @@ public final class ReverbDatabase: @unchecked Sendable {
                 createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 2)),
                 settings: settings
             )
+        }
+    }
+
+    public func deletePreset(id: Int64) throws {
+        try execute("DELETE FROM presets WHERE id = ?;") { statement in
+            bind(id, to: statement, at: 1)
+        }
+    }
+
+    public func renamePreset(id: Int64, name: String) throws {
+        try execute("UPDATE presets SET name = ? WHERE id = ?;") { statement in
+            bind(name, to: statement, at: 1)
+            bind(id, to: statement, at: 2)
+        }
+    }
+
+    public func exportPresets(to url: URL) throws {
+        let data = try encoder.encode(presets())
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: url)
+    }
+
+    public func importPresets(from url: URL) throws {
+        let data = try Data(contentsOf: url)
+        let imported = try decoder.decode([ReverbPreset].self, from: data)
+        for preset in imported {
+            _ = try savePreset(ReverbPreset(name: preset.name, settings: preset.settings))
         }
     }
 

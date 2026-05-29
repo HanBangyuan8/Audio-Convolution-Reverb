@@ -41,19 +41,30 @@ public enum ReverbDSP {
     ) -> AudioBuffer {
         var ir = resampleIfNeeded(impulseResponse.monoSamples, from: impulseResponse.sampleRate, to: dry.sampleRate)
         ir = shapedImpulse(ir, sampleRate: dry.sampleRate, settings: settings)
+        let inputGain = dbToLinear(settings.inputGainDB)
+        let outputGain = dbToLinear(settings.outputGainDB)
+        let tailSamples = max(0, Int(settings.tailLengthSeconds * Double(dry.sampleRate)))
+        let latencySamples = Int(settings.latencyCompensationMilliseconds / 1000 * Double(dry.sampleRate))
 
         let renderedChannels = dry.samples.map { channel -> [Double] in
-            let wet = ComplexFFT.convolve(channel, ir)
-            let count = channel.count
+            let input = channel.map { $0 * inputGain }
+            var wet = ComplexFFT.convolve(input, ir)
+            if settings.normalizeWetSignal {
+                wet = normalize(wet, peak: 0.95)
+            }
+            let count = min(max(channel.count, channel.count + tailSamples), wet.count)
             var mixed = Array(repeating: 0.0, count: count)
             for index in 0..<count {
-                let wetValue = index < wet.count ? wet[index] : 0
-                mixed[index] = settings.dryLevel * channel[index] + settings.wetLevel * wetValue
+                let dryValue = index < input.count ? input[index] : 0
+                let wetIndex = index + latencySamples
+                let wetValue = wet.indices.contains(wetIndex) ? wet[wetIndex] : 0
+                mixed[index] = (settings.dryLevel * dryValue + settings.wetLevel * wetValue) * outputGain
             }
             return mixed
         }
 
-        let rendered = AudioBuffer(samples: renderedChannels, sampleRate: dry.sampleRate)
+        let widened = applyStereoWidth(renderedChannels, width: settings.stereoWidth)
+        let rendered = AudioBuffer(samples: widened, sampleRate: dry.sampleRate)
         return settings.normalizeOutput ? rendered.normalized(peak: 0.95) : rendered
     }
 
@@ -94,6 +105,10 @@ public enum ReverbDSP {
         return sqrt(samples.reduce(0) { $0 + $1 * $1 } / Double(samples.count))
     }
 
+    public static func peak(_ samples: [Double]) -> Double {
+        samples.map(abs).max() ?? 0
+    }
+
     public static func normalize(_ samples: [Double], peak: Double) -> [Double] {
         let maxValue = samples.map(abs).max() ?? 0
         guard maxValue > 0 else { return samples }
@@ -102,6 +117,8 @@ public enum ReverbDSP {
 
     private static func shapedImpulse(_ input: [Double], sampleRate: Int, settings: ReverbSettings) -> [Double] {
         var ir = settings.reverseImpulse ? Array(input.reversed()) : input
+        ir = trim(ir, sampleRate: sampleRate, startMilliseconds: settings.impulseTrimStartMilliseconds, endMilliseconds: settings.impulseTrimEndMilliseconds)
+        ir = applyFades(ir, sampleRate: sampleRate, fadeInMilliseconds: settings.fadeInMilliseconds, fadeOutMilliseconds: settings.fadeOutMilliseconds)
         if settings.decayScale != 1 {
             let count = max(ir.count - 1, 1)
             ir = ir.enumerated().map { index, sample in
@@ -117,6 +134,50 @@ public enum ReverbDSP {
             ir = Array(repeating: 0.0, count: preDelaySamples) + ir
         }
         return ir
+    }
+
+    private static func trim(_ input: [Double], sampleRate: Int, startMilliseconds: Double, endMilliseconds: Double) -> [Double] {
+        guard !input.isEmpty else { return input }
+        let start = min(max(0, Int(startMilliseconds / 1000 * Double(sampleRate))), input.count - 1)
+        let endTrim = max(0, Int(endMilliseconds / 1000 * Double(sampleRate)))
+        let end = max(start + 1, input.count - endTrim)
+        return Array(input[start..<min(end, input.count)])
+    }
+
+    private static func applyFades(_ input: [Double], sampleRate: Int, fadeInMilliseconds: Double, fadeOutMilliseconds: Double) -> [Double] {
+        var output = input
+        let fadeInCount = min(output.count, max(0, Int(fadeInMilliseconds / 1000 * Double(sampleRate))))
+        let fadeOutCount = min(output.count, max(0, Int(fadeOutMilliseconds / 1000 * Double(sampleRate))))
+        if fadeInCount > 1 {
+            for index in 0..<fadeInCount {
+                output[index] *= Double(index) / Double(fadeInCount - 1)
+            }
+        }
+        if fadeOutCount > 1 {
+            let start = output.count - fadeOutCount
+            for offset in 0..<fadeOutCount {
+                output[start + offset] *= 1 - Double(offset) / Double(fadeOutCount - 1)
+            }
+        }
+        return output
+    }
+
+    private static func applyStereoWidth(_ channels: [[Double]], width: Double) -> [[Double]] {
+        guard channels.count == 2, channels[0].count == channels[1].count else { return channels }
+        let safeWidth = min(max(width, 0), 2)
+        var left = channels[0]
+        var right = channels[1]
+        for index in left.indices {
+            let mid = (left[index] + right[index]) * 0.5
+            let side = (left[index] - right[index]) * 0.5 * safeWidth
+            left[index] = mid + side
+            right[index] = mid - side
+        }
+        return [left, right]
+    }
+
+    private static func dbToLinear(_ db: Double) -> Double {
+        pow(10, db / 20)
     }
 
     private static func toneFilter(_ input: [Double], sampleRate: Int, lowCutHz: Double, highCutHz: Double) -> [Double] {

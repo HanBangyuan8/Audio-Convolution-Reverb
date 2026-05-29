@@ -1,229 +1,420 @@
 import AudioConvolutionReverbCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct StudioView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var model = StudioViewModel()
 
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.07, green: 0.08, blue: 0.11), Color(red: 0.12, green: 0.13, blue: 0.17)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+    private var palette: Palette { Palette(colorScheme) }
 
-            HStack(spacing: 0) {
-                sidebar
-                Divider().overlay(.white.opacity(0.08))
-                mainPanel
-            }
+    var body: some View {
+        HStack(spacing: 0) {
+            sidebar
+            Divider()
+            mainPanel
         }
-        .foregroundStyle(.white)
+        .background(palette.background)
+        .foregroundStyle(palette.primaryText)
         .onReceive(NotificationCenter.default.publisher(for: .renderRequested)) { _ in
             model.render()
         }
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Audio Convolution")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.system(size: 25, weight: .bold, design: .rounded))
                 Text("Reverb Studio")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.cyan)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.accent)
             }
 
-            statGrid
+            HStack(spacing: 10) {
+                StatTile(title: "History", value: "\(model.renders.count)", palette: palette)
+                StatTile(title: "Presets", value: "\(model.presets.count)", palette: palette)
+            }
 
-            Text("Presets")
-                .font(.headline)
-                .padding(.top, 8)
+            TextField("Search renders", text: $model.renderSearch)
+                .textFieldStyle(.roundedBorder)
+                .onChange(of: model.renderSearch) { _ in model.refresh() }
 
-            ForEach(model.presets) { preset in
-                Button {
-                    model.applyPreset(preset)
-                } label: {
-                    HStack {
-                        Image(systemName: "slider.horizontal.3")
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(preset.name).font(.subheadline.weight(.semibold))
-                            Text("Wet \(preset.settings.wetLevel, specifier: "%.2f")  Dry \(preset.settings.dryLevel, specifier: "%.2f")")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.55))
+            SidebarHeader(title: "Presets", palette: palette) {
+                Button(action: model.importPresets) { Image(systemName: "square.and.arrow.down") }
+                Button(action: model.exportPresets) { Image(systemName: "square.and.arrow.up") }
+            }
+
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(model.presets) { preset in
+                        Button { model.applyPreset(preset) } label: {
+                            HStack {
+                                Image(systemName: "slider.horizontal.3")
+                                    .foregroundStyle(palette.accent)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(preset.name)
+                                        .font(.subheadline.weight(.semibold))
+                                    Text("Wet \(preset.settings.wetLevel, specifier: "%.2f") · Dry \(preset.settings.dryLevel, specifier: "%.2f")")
+                                        .font(.caption)
+                                        .foregroundStyle(palette.secondaryText)
+                                }
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(palette.panel, in: RoundedRectangle(cornerRadius: 8))
                         }
-                        Spacer()
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Rename") { model.renamePreset(preset) }
+                            Button("Delete", role: .destructive) { model.deletePreset(preset) }
+                        }
                     }
-                    .padding(10)
-                    .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
                 }
-                .buttonStyle(.plain)
             }
+            .frame(maxHeight: 180)
 
-            Text("Recent Renders")
-                .font(.headline)
-                .padding(.top, 8)
+            SidebarHeader(title: "Recent Renders", palette: palette) {}
 
             ScrollView {
                 VStack(spacing: 8) {
                     ForEach(model.renders) { render in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(render.name)
-                                .font(.caption.weight(.semibold))
-                            Text("\(render.sampleRate) Hz · \(render.duration, specifier: "%.1f") s")
-                                .font(.caption2)
-                                .foregroundStyle(.white.opacity(0.55))
+                        Button { model.reopenRender(render) } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(render.name)
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(1)
+                                Text("\(render.sampleRate) Hz · \(render.duration, specifier: "%.1f") s")
+                                    .font(.caption2)
+                                    .foregroundStyle(palette.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(9)
+                            .background(palette.panel, in: RoundedRectangle(cornerRadius: 8))
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(9)
-                        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 7))
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Open") { model.reopenRender(render) }
+                            Button("Reveal in Finder") { model.revealRender(render) }
+                            Button("Rename") { model.renameRender(render) }
+                            Button("Delete", role: .destructive) { model.deleteRender(render) }
+                        }
                     }
                 }
             }
 
             Spacer()
-            Text(model.status)
-                .font(.caption)
-                .foregroundStyle(model.isRendering ? .cyan : .white.opacity(0.72))
-                .lineLimit(3)
+            VStack(alignment: .leading, spacing: 8) {
+                if model.isRendering {
+                    ProgressView(value: model.renderProgress)
+                        .progressViewStyle(.linear)
+                }
+                Text(model.status)
+                    .font(.caption)
+                    .foregroundStyle(model.isRendering ? palette.accent : palette.secondaryText)
+                    .lineLimit(3)
+            }
         }
-        .padding(24)
-        .frame(width: 310)
-        .background(.black.opacity(0.28))
-    }
-
-    private var statGrid: some View {
-        HStack(spacing: 10) {
-            StatTile(title: "History", value: "\(model.renders.count)")
-            StatTile(title: "Presets", value: "\(model.presets.count)")
-        }
+        .padding(22)
+        .frame(width: 330)
+        .background(palette.sidebar)
     }
 
     private var mainPanel: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 18) {
                 hero
+                transportPanel
                 filePanel
+                visualizationPanel
                 settingsPanel
+                professionalPanel
                 customImpulsePanel
                 actionPanel
             }
-            .padding(30)
+            .padding(28)
         }
     }
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Design a space, capture a space, or invent a new one.")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Convolution reverb, from captured spaces to designed spaces.")
+                .font(.system(size: 33, weight: .bold, design: .rounded))
                 .fixedSize(horizontal: false, vertical: true)
-            Text("SwiftUI front end, Swift FFT convolution engine, SQLite render history, and the original notebook algorithm preserved in the Python CLI.")
+            Text("Import WAV, AIFF, CAF, or M4A. Preview, compare, visualize, render, and keep every useful preset or output in SQLite history.")
                 .font(.title3)
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(palette.secondaryText)
         }
-        .padding(.bottom, 4)
+    }
+
+    private var transportPanel: some View {
+        StudioSection(title: "Playback and A/B", palette: palette) {
+            HStack(spacing: 12) {
+                Picker("Target", selection: $model.playbackTarget) {
+                    ForEach(PlaybackTarget.allCases) { target in
+                        Text(target.rawValue).tag(target)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 300)
+
+                Button(action: model.playSelected) {
+                    Label(model.isPlaying ? "Restart" : "Play", systemImage: "play.fill")
+                }
+                .buttonStyle(PrimaryButtonStyle(palette: palette))
+
+                Button(action: model.stopPlayback) {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+                .buttonStyle(SecondaryButtonStyle(palette: palette))
+
+                Button(action: model.abToggle) {
+                    Label("A/B", systemImage: "arrow.left.arrow.right")
+                }
+                .buttonStyle(SecondaryButtonStyle(palette: palette))
+
+                Spacer()
+
+                SliderRow(title: "Preview", value: $model.previewSeconds, range: 2...30, suffix: " s", palette: palette)
+                    .frame(width: 280)
+            }
+        }
     }
 
     private var filePanel: some View {
-        StudioSection(title: "Session") {
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 14) {
-                FileRow(title: "Dry Audio", value: model.dryURL?.path(percentEncoded: false) ?? "No file selected", icon: "waveform", action: model.chooseDryAudio)
-                FileRow(title: "Impulse Response", value: model.impulseURL?.path(percentEncoded: false) ?? "No IR selected", icon: "dot.radiowaves.left.and.right", action: model.chooseImpulse)
-                FileRow(title: "Output", value: model.outputURL.path(percentEncoded: false), icon: "square.and.arrow.down", action: model.chooseOutput)
+        StudioSection(title: "Session Files", palette: palette) {
+            VStack(spacing: 12) {
+                FileDropRow(
+                    title: "Dry Audio",
+                    value: model.dryURL?.path(percentEncoded: false) ?? "Drop WAV, AIFF, CAF, or M4A here",
+                    icon: "waveform",
+                    palette: palette,
+                    action: model.chooseDryAudio
+                )
+                .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.acceptDrop($0, target: .dry) }
+
+                FileDropRow(
+                    title: "Impulse Response",
+                    value: model.impulseURL?.path(percentEncoded: false) ?? "Drop an IR or generated space here",
+                    icon: "dot.radiowaves.left.and.right",
+                    palette: palette,
+                    action: model.chooseImpulse
+                )
+                .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.acceptDrop($0, target: .impulse) }
+
+                HStack {
+                    FileDropRow(
+                        title: "Output",
+                        value: model.outputURL.path(percentEncoded: false),
+                        icon: "square.and.arrow.down",
+                        palette: palette,
+                        action: model.chooseOutput
+                    )
+                    Picker("Format", selection: $model.exportFormat) {
+                        ForEach(ExportFormat.allCases) { format in
+                            Text(format.rawValue).tag(format)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 210)
+                }
+            }
+        }
+    }
+
+    private var visualizationPanel: some View {
+        StudioSection(title: "Waveform, Spectrum, and Decay", palette: palette) {
+            VStack(spacing: 14) {
+                HStack(spacing: 14) {
+                    AnalysisCard(title: "Dry", analysis: model.dryAnalysis, palette: palette)
+                    AnalysisCard(title: "Impulse", analysis: model.impulseAnalysis, palette: palette)
+                    AnalysisCard(title: "Rendered", analysis: model.renderedAnalysis, palette: palette)
+                }
+                HStack(spacing: 14) {
+                    SpectrumCard(title: "IR Frequency Response", analysis: model.impulseAnalysis, palette: palette)
+                    DecayCard(title: "IR Energy Decay", analysis: model.impulseAnalysis, palette: palette)
+                }
             }
         }
     }
 
     private var settingsPanel: some View {
-        StudioSection(title: "Mix and Transform") {
-            VStack(spacing: 16) {
-                SliderRow(title: "Dry", value: $model.settings.dryLevel, range: 0...1, suffix: "")
-                SliderRow(title: "Wet", value: $model.settings.wetLevel, range: 0...1, suffix: "")
-                SliderRow(title: "Pre-delay", value: $model.settings.preDelayMilliseconds, range: 0...120, suffix: " ms")
-                SliderRow(title: "Decay Shape", value: $model.settings.decayScale, range: 0.35...2.5, suffix: "x")
-                SliderRow(title: "Low Cut", value: $model.settings.lowCutHz, range: 0...800, suffix: " Hz")
-                SliderRow(title: "High Cut", value: $model.settings.highCutHz, range: 2_000...20_000, suffix: " Hz")
+        StudioSection(title: "Mix and Transform", palette: palette) {
+            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 12) {
+                GridRow {
+                    SliderRow(title: "Dry", value: $model.settings.dryLevel, range: 0...1, suffix: "", palette: palette)
+                    SliderRow(title: "Wet", value: $model.settings.wetLevel, range: 0...1, suffix: "", palette: palette)
+                }
+                GridRow {
+                    SliderRow(title: "Pre-delay", value: $model.settings.preDelayMilliseconds, range: 0...160, suffix: " ms", palette: palette)
+                    SliderRow(title: "Decay", value: $model.settings.decayScale, range: 0.25...3, suffix: "x", palette: palette)
+                }
+                GridRow {
+                    SliderRow(title: "Low Cut", value: $model.settings.lowCutHz, range: 0...1_200, suffix: " Hz", palette: palette)
+                    SliderRow(title: "High Cut", value: $model.settings.highCutHz, range: 2_000...22_000, suffix: " Hz", palette: palette)
+                }
+            }
+            HStack {
                 Toggle("Reverse impulse bloom", isOn: $model.settings.reverseImpulse)
                 Toggle("Normalize output", isOn: $model.settings.normalizeOutput)
+                Toggle("Normalize wet signal", isOn: $model.settings.normalizeWetSignal)
             }
+        }
+    }
+
+    private var professionalPanel: some View {
+        StudioSection(title: "Professional Controls", palette: palette) {
+            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 12) {
+                GridRow {
+                    SliderRow(title: "Input Gain", value: $model.settings.inputGainDB, range: -24...24, suffix: " dB", palette: palette)
+                    SliderRow(title: "Output Gain", value: $model.settings.outputGainDB, range: -24...24, suffix: " dB", palette: palette)
+                }
+                GridRow {
+                    SliderRow(title: "IR Trim Start", value: $model.settings.impulseTrimStartMilliseconds, range: 0...500, suffix: " ms", palette: palette)
+                    SliderRow(title: "IR Trim End", value: $model.settings.impulseTrimEndMilliseconds, range: 0...1_000, suffix: " ms", palette: palette)
+                }
+                GridRow {
+                    SliderRow(title: "Fade In", value: $model.settings.fadeInMilliseconds, range: 0...250, suffix: " ms", palette: palette)
+                    SliderRow(title: "Fade Out", value: $model.settings.fadeOutMilliseconds, range: 0...1_000, suffix: " ms", palette: palette)
+                }
+                GridRow {
+                    SliderRow(title: "Stereo Width", value: $model.settings.stereoWidth, range: 0...2, suffix: "x", palette: palette)
+                    SliderRow(title: "Tail Length", value: $model.settings.tailLengthSeconds, range: 0...12, suffix: " s", palette: palette)
+                }
+                GridRow {
+                    SliderRow(title: "Latency Comp", value: $model.settings.latencyCompensationMilliseconds, range: -120...120, suffix: " ms", palette: palette)
+                    EmptyView()
+                }
+            }
+            MeterRow(title: "Dry Level", analysis: model.dryAnalysis, palette: palette)
+            MeterRow(title: "Rendered Level", analysis: model.renderedAnalysis, palette: palette)
         }
     }
 
     private var customImpulsePanel: some View {
-        StudioSection(title: "Custom Convolution Reverb") {
-            VStack(spacing: 16) {
-                SliderRow(title: "IR Duration", value: $model.customDuration, range: 0.3...8, suffix: " s")
-                SliderRow(title: "Decay", value: $model.customDecay, range: 0.5...9, suffix: "")
-                SliderRow(title: "Tone", value: $model.customTone, range: 0...1, suffix: "")
-                SliderRow(title: "Early Reflections", value: $model.customReflections, range: 0...28, suffix: "")
-                Button {
-                    model.generateCustomImpulse()
-                } label: {
-                    Label("Generate Custom IR", systemImage: "sparkles")
+        StudioSection(title: "Custom Convolution Reverb", palette: palette) {
+            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 12) {
+                GridRow {
+                    SliderRow(title: "IR Duration", value: $model.customDuration, range: 0.3...10, suffix: " s", palette: palette)
+                    SliderRow(title: "Decay", value: $model.customDecay, range: 0.5...10, suffix: "", palette: palette)
                 }
-                .buttonStyle(PrimaryButtonStyle())
+                GridRow {
+                    SliderRow(title: "Tone", value: $model.customTone, range: 0...1, suffix: "", palette: palette)
+                    SliderRow(title: "Reflections", value: $model.customReflections, range: 0...40, suffix: "", palette: palette)
+                }
             }
+            Button { model.generateCustomImpulse() } label: {
+                Label("Generate Custom IR", systemImage: "sparkles")
+            }
+            .buttonStyle(PrimaryButtonStyle(palette: palette))
         }
     }
 
     private var actionPanel: some View {
-        HStack(spacing: 14) {
-            Button(action: model.render) {
-                Label(model.isRendering ? "Rendering..." : "Render Reverb", systemImage: "wand.and.stars")
+        HStack(spacing: 12) {
+            Button(action: model.renderPreview) {
+                Label("Preview", systemImage: "bolt.fill")
             }
-            .buttonStyle(PrimaryButtonStyle())
+            .buttonStyle(SecondaryButtonStyle(palette: palette))
             .disabled(model.isRendering)
+
+            Button(action: model.render) {
+                Label(model.isRendering ? "Rendering..." : "Render", systemImage: "wand.and.stars")
+            }
+            .buttonStyle(PrimaryButtonStyle(palette: palette))
+            .disabled(model.isRendering)
+
+            Button(action: model.cancelRender) {
+                Label("Cancel", systemImage: "xmark.circle")
+            }
+            .buttonStyle(SecondaryButtonStyle(palette: palette))
+            .disabled(!model.isRendering)
 
             Button(action: model.saveCurrentPreset) {
                 Label("Save Preset", systemImage: "bookmark")
             }
-            .buttonStyle(SecondaryButtonStyle())
+            .buttonStyle(SecondaryButtonStyle(palette: palette))
 
             Button(action: model.openOutputFolder) {
                 Label("Reveal Output", systemImage: "folder")
             }
-            .buttonStyle(SecondaryButtonStyle())
+            .buttonStyle(SecondaryButtonStyle(palette: palette))
         }
-        .padding(.top, 4)
     }
+}
+
+private struct Palette {
+    let scheme: ColorScheme
+
+    init(_ scheme: ColorScheme) {
+        self.scheme = scheme
+    }
+
+    var background: Color { Color(nsColor: .windowBackgroundColor) }
+    var sidebar: Color { scheme == .dark ? Color.black.opacity(0.28) : Color(nsColor: .controlBackgroundColor) }
+    var panel: Color { scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045) }
+    var panelStrong: Color { scheme == .dark ? Color.white.opacity(0.11) : Color.white }
+    var primaryText: Color { Color(nsColor: .labelColor) }
+    var secondaryText: Color { Color(nsColor: .secondaryLabelColor) }
+    var accent: Color { scheme == .dark ? .cyan : .blue }
+    var stroke: Color { scheme == .dark ? Color.white.opacity(0.09) : Color.black.opacity(0.09) }
 }
 
 private struct StudioSection<Content: View>: View {
     var title: String
+    var palette: Palette
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(title)
-                .font(.title3.weight(.semibold))
+            Text(title).font(.title3.weight(.semibold))
             content
         }
-        .padding(20)
-        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08)))
+        .padding(18)
+        .background(palette.panel, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(palette.stroke))
     }
 }
 
-private struct FileRow: View {
+private struct SidebarHeader<Content: View>: View {
+    var title: String
+    var palette: Palette
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        HStack {
+            Text(title).font(.headline)
+            Spacer()
+            content.buttonStyle(.borderless)
+        }
+        .foregroundStyle(palette.primaryText)
+    }
+}
+
+private struct FileDropRow: View {
     var title: String
     var value: String
     var icon: String
+    var palette: Palette
     var action: () -> Void
 
     var body: some View {
-        GridRow {
+        HStack(spacing: 12) {
             Label(title, systemImage: icon)
                 .font(.headline)
                 .frame(width: 180, alignment: .leading)
             Text(value)
                 .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.68))
+                .foregroundStyle(palette.secondaryText)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            Spacer()
             Button("Choose", action: action)
-                .buttonStyle(SecondaryButtonStyle())
+                .buttonStyle(SecondaryButtonStyle(palette: palette))
         }
+        .padding(12)
+        .background(palette.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(palette.stroke))
     }
 }
 
@@ -232,14 +423,15 @@ private struct SliderRow: View {
     @Binding var value: Double
     var range: ClosedRange<Double>
     var suffix: String
+    var palette: Palette
 
     var body: some View {
-        HStack(spacing: 14) {
-            Text(title).frame(width: 140, alignment: .leading)
+        HStack(spacing: 12) {
+            Text(title).frame(width: 110, alignment: .leading)
             Slider(value: $value, in: range)
             Text("\(value, specifier: "%.2f")\(suffix)")
                 .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(palette.secondaryText)
                 .frame(width: 82, alignment: .trailing)
         }
     }
@@ -248,36 +440,189 @@ private struct SliderRow: View {
 private struct StatTile: View {
     var title: String
     var value: String
+    var palette: Palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(value).font(.title2.weight(.bold))
-            Text(title).font(.caption).foregroundStyle(.white.opacity(0.58))
+            Text(title).font(.caption).foregroundStyle(palette.secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+        .background(palette.panel, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct AnalysisCard: View {
+    var title: String
+    var analysis: AudioAnalysis?
+    var palette: Palette
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            WaveformView(peaks: analysis?.waveform.peaks ?? [], palette: palette)
+                .frame(height: 82)
+            HStack {
+                Text("Peak \(analysis?.waveform.peak ?? 0, specifier: "%.2f")")
+                Spacer()
+                Text("RMS \(analysis?.waveform.rms ?? 0, specifier: "%.2f")")
+                Spacer()
+                Text("\(analysis?.waveform.duration ?? 0, specifier: "%.1f") s")
+            }
+            .font(.caption)
+            .foregroundStyle(palette.secondaryText)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(palette.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct SpectrumCard: View {
+    var title: String
+    var analysis: AudioAnalysis?
+    var palette: Palette
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            SpectrumView(points: analysis?.spectrum ?? [], palette: palette)
+                .frame(height: 120)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(palette.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct DecayCard: View {
+    var title: String
+    var analysis: AudioAnalysis?
+    var palette: Palette
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            DecayView(values: analysis?.decay ?? [], palette: palette)
+                .frame(height: 120)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(palette.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct WaveformView: View {
+    var peaks: [Double]
+    var palette: Palette
+
+    var body: some View {
+        Canvas { context, size in
+            guard !peaks.isEmpty else {
+                context.draw(Text("No audio").foregroundColor(palette.secondaryText), at: CGPoint(x: size.width / 2, y: size.height / 2))
+                return
+            }
+            let mid = size.height / 2
+            let step = size.width / CGFloat(max(peaks.count - 1, 1))
+            var path = Path()
+            for (index, peak) in peaks.enumerated() {
+                let x = CGFloat(index) * step
+                let y = CGFloat(min(max(peak, 0), 1)) * mid
+                path.move(to: CGPoint(x: x, y: mid - y))
+                path.addLine(to: CGPoint(x: x, y: mid + y))
+            }
+            context.stroke(path, with: .color(palette.accent), lineWidth: 1)
+        }
+    }
+}
+
+private struct SpectrumView: View {
+    var points: [FrequencyPoint]
+    var palette: Palette
+
+    var body: some View {
+        Canvas { context, size in
+            guard points.count > 1 else { return }
+            let minDB = -90.0
+            let maxDB = 12.0
+            var path = Path()
+            for (index, point) in points.enumerated() {
+                let x = CGFloat(index) / CGFloat(points.count - 1) * size.width
+                let normalized = (point.magnitudeDB - minDB) / (maxDB - minDB)
+                let y = size.height * (1 - CGFloat(min(max(normalized, 0), 1)))
+                if index == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            context.stroke(path, with: .color(palette.accent), lineWidth: 2)
+        }
+    }
+}
+
+private struct DecayView: View {
+    var values: [Double]
+    var palette: Palette
+
+    var body: some View {
+        Canvas { context, size in
+            guard values.count > 1 else { return }
+            var path = Path()
+            for (index, value) in values.enumerated() {
+                let x = CGFloat(index) / CGFloat(values.count - 1) * size.width
+                let y = size.height * (1 - CGFloat((value + 90) / 90).clamped(to: 0...1))
+                if index == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            context.stroke(path, with: .color(palette.accent), lineWidth: 2)
+        }
+    }
+}
+
+private struct MeterRow: View {
+    var title: String
+    var analysis: AudioAnalysis?
+    var palette: Palette
+
+    var body: some View {
+        HStack {
+            Text(title).frame(width: 110, alignment: .leading)
+            ProgressView(value: min(analysis?.waveform.peak ?? 0, 1))
+                .progressViewStyle(.linear)
+            Text("\(analysis?.waveform.peak ?? 0, specifier: "%.2f")")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(palette.secondaryText)
+                .frame(width: 50, alignment: .trailing)
+        }
     }
 }
 
 private struct PrimaryButtonStyle: ButtonStyle {
+    var palette: Palette
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 11)
-            .background(configuration.isPressed ? Color.cyan.opacity(0.75) : Color.cyan, in: RoundedRectangle(cornerRadius: 8))
-            .foregroundStyle(.black)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(configuration.isPressed ? palette.accent.opacity(0.75) : palette.accent, in: RoundedRectangle(cornerRadius: 8))
+            .foregroundStyle(.white)
     }
 }
 
 private struct SecondaryButtonStyle: ButtonStyle {
+    var palette: Palette
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(configuration.isPressed ? .white.opacity(0.16) : .white.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
-            .foregroundStyle(.white)
+            .background(configuration.isPressed ? palette.panel.opacity(0.6) : palette.panel, in: RoundedRectangle(cornerRadius: 8))
+            .foregroundStyle(palette.primaryText)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(palette.stroke))
+    }
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

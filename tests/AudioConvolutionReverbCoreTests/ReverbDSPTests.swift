@@ -17,6 +17,8 @@ final class ReverbDSPTests: XCTestCase {
         settings.normalizeOutput = false
         settings.lowCutHz = 0
         settings.highCutHz = 4_000
+        settings.tailLengthSeconds = 0
+        settings.fadeOutMilliseconds = 0
 
         let rendered = ReverbDSP.applyConvolutionReverb(dry: dry, impulseResponse: ir, settings: settings)
 
