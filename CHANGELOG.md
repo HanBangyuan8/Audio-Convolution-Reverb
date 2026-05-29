@@ -8,12 +8,13 @@ Major release.
 - Added in-app playback for dry, rendered, and impulse response files with A/B switching.
 - Added preview rendering for short near-real-time auditioning.
 - Added waveform, frequency response, decay, and level visualizations.
+- Rebuilt the studio layout with narrower sidebar limits, adaptive panel grids, wrapping controls, and reliable vertical scrolling.
 - Added drag-and-drop import for dry audio and impulse response files.
 - Added AVFoundation-based WAV, AIFF, CAF, and M4A input plus WAV, AIFF, and CAF export.
 - Added render progress, cancellation, and clearer error recovery.
 - Expanded SQLite history and preset management with search, rename, delete, reveal, import, and export.
 - Added professional reverb controls for gain staging, IR trim, fades, stereo width, wet normalization, latency compensation, and tail length.
-- Added About and Preferences windows, app icon support, DMG packaging, and broader regression tests.
+- Added About and Preferences windows, Resources-based app icon support, DMG packaging, and broader regression tests.
 
 ## v1.0.0 - 2026-05-29
 

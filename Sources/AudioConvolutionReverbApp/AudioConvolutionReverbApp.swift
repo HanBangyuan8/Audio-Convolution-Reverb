@@ -7,7 +7,7 @@ struct AudioConvolutionReverbApp: App {
     var body: some Scene {
         WindowGroup {
             StudioView()
-                .frame(minWidth: 1120, minHeight: 720)
+                .frame(minWidth: 900, minHeight: 560)
                 .sheet(isPresented: $showingAbout) {
                     AboutView()
                 }

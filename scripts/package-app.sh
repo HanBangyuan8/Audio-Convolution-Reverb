@@ -8,9 +8,25 @@ APP_NAME="Audio Convolution Reverb"
 BUNDLE_ID="com.hanbangyuan.audio-convolution-reverb"
 VERSION="1.1.0"
 DIST_DIR="$ROOT_DIR/dist"
-STAGE_DIR="/tmp/audio-convolution-reverb-package"
+STAGE_DIR="${TMPDIR:-/tmp}/audio-convolution-reverb-package"
 APP_DIR="$STAGE_DIR/$APP_NAME.app"
 FINAL_APP_DIR="$DIST_DIR/$APP_NAME.app"
+ICON_SOURCE="$ROOT_DIR/Resources/AppIcon.icns"
+
+clean_bundle_metadata() {
+  local bundle_dir="$1"
+  find "$bundle_dir" -name "._*" -delete
+  if command -v dot_clean >/dev/null 2>&1; then
+    dot_clean -m "$bundle_dir"
+  fi
+  if command -v xattr >/dev/null 2>&1; then
+    xattr -cr "$bundle_dir" 2>/dev/null || true
+    while IFS= read -r -d '' file_path; do
+      xattr -d com.apple.FinderInfo "$file_path" 2>/dev/null || true
+      xattr -d 'com.apple.fileprovider.fpfs#P' "$file_path" 2>/dev/null || true
+    done < <(find "$bundle_dir" -print0)
+  fi
+}
 
 rm -rf "$APP_DIR" "$FINAL_APP_DIR" "$STAGE_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
@@ -21,8 +37,8 @@ BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 
 cp "$BIN_PATH/$APP_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
 cp "$BIN_PATH/audio-reverb-swift" "$DIST_DIR/audio-reverb-swift"
-if [[ -f "$ROOT_DIR/assets/AppIcon.icns" ]]; then
-  cp "$ROOT_DIR/assets/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+if [[ -f "$ICON_SOURCE" ]]; then
+  cp "$ICON_SOURCE" "$APP_DIR/Contents/Resources/AppIcon.icns"
 fi
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
@@ -55,15 +71,17 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 PLIST
 
 echo "APPL????" > "$APP_DIR/Contents/PkgInfo"
-find "$APP_DIR" -exec xattr -c {} \; 2>/dev/null || true
+clean_bundle_metadata "$APP_DIR"
 codesign --force --deep --sign - "$APP_DIR"
-find "$APP_DIR" -exec xattr -c {} \; 2>/dev/null || true
+clean_bundle_metadata "$APP_DIR"
 codesign --force --deep --sign - "$APP_DIR"
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 
-ditto -c -k --keepParent "$APP_DIR" "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}-macOS-universal.zip"
+ditto --norsrc -c -k --keepParent "$APP_DIR" "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}-macOS-universal.zip"
 hdiutil create -volname "$APP_NAME" -srcfolder "$APP_DIR" -ov -format UDZO "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}.dmg"
-ditto "$APP_DIR" "$FINAL_APP_DIR"
+ditto --norsrc "$APP_DIR" "$FINAL_APP_DIR"
+clean_bundle_metadata "$FINAL_APP_DIR"
+codesign --verify --deep --strict --verbose=2 "$FINAL_APP_DIR"
 
 echo "Packaged:"
 ls -lh "$DIST_DIR"

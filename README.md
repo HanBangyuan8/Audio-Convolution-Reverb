@@ -29,7 +29,7 @@ A native macOS convolution reverb studio with a SwiftUI front end, Swift FFT aud
 
 ## Early Test Results
 
-These two images were extracted from the original notebook and kept as early portfolio output.
+These two images were extracted from the original notebook and kept as early project output.
 
 <img src="assets/early-test-results/bedroom-analysis.png" alt="Bedroom early impulse response analysis" width="900">
 

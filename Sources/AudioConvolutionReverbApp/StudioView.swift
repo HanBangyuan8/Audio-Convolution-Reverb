@@ -11,9 +11,10 @@ struct StudioView: View {
     var body: some View {
         HSplitView {
             sidebar
-                .frame(minWidth: 300, idealWidth: 340, maxWidth: 440)
+                .frame(minWidth: 280, idealWidth: 320, maxWidth: 420)
             mainPanel
-                .frame(minWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: 500, maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(1)
         }
         .background(palette.background)
         .foregroundStyle(palette.primaryText)
@@ -117,24 +118,26 @@ struct StudioView: View {
             }
         }
         .padding(22)
-        .frame(minWidth: 300, maxWidth: .infinity)
+        .frame(minWidth: 280, maxWidth: .infinity)
         .background(palette.sidebar)
     }
 
     private var mainPanel: some View {
-        ScrollView([.vertical, .horizontal]) {
-            VStack(alignment: .leading, spacing: 18) {
-                hero
-                transportPanel
-                filePanel
-                visualizationPanel
-                settingsPanel
-                professionalPanel
-                customImpulsePanel
-                actionPanel
+        GeometryReader { geometry in
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    hero
+                    transportPanel(width: geometry.size.width)
+                    filePanel(width: geometry.size.width)
+                    visualizationPanel(width: geometry.size.width)
+                    settingsPanel(width: geometry.size.width)
+                    professionalPanel(width: geometry.size.width)
+                    customImpulsePanel(width: geometry.size.width)
+                    actionPanel(width: geometry.size.width)
+                }
+                .padding(28)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(28)
-            .frame(minWidth: 780, maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -149,16 +152,16 @@ struct StudioView: View {
         }
     }
 
-    private var transportPanel: some View {
+    private func transportPanel(width: CGFloat) -> some View {
         StudioSection(title: "Playback and A/B", palette: palette) {
-            HStack(spacing: 12) {
+            FlowLayout(spacing: 12) {
                 Picker("Target", selection: $model.playbackTarget) {
                     ForEach(PlaybackTarget.allCases) { target in
                         Text(target.rawValue).tag(target)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 300)
+                .frame(minWidth: 240, idealWidth: 300, maxWidth: 340)
 
                 Button(action: model.playSelected) {
                     Label(model.isPlaying ? "Restart" : "Play", systemImage: "play.fill")
@@ -175,15 +178,13 @@ struct StudioView: View {
                 }
                 .buttonStyle(SecondaryButtonStyle(palette: palette))
 
-                Spacer()
-
                 SliderRow(title: "Preview", value: $model.previewSeconds, range: 2...30, suffix: " s", palette: palette)
-                    .frame(width: 280)
+                    .frame(minWidth: 240, idealWidth: 300, maxWidth: width < 900 ? .infinity : 340)
             }
         }
     }
 
-    private var filePanel: some View {
+    private func filePanel(width: CGFloat) -> some View {
         StudioSection(title: "Session Files", palette: palette) {
             VStack(spacing: 12) {
                 FileDropRow(
@@ -204,14 +205,15 @@ struct StudioView: View {
                 )
                 .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.acceptDrop($0, target: .impulse) }
 
-                HStack {
-                    FileDropRow(
-                        title: "Output",
-                        value: model.outputURL.path(percentEncoded: false),
-                        icon: "square.and.arrow.down",
-                        palette: palette,
-                        action: model.chooseOutput
-                    )
+                FileDropRow(
+                    title: "Output",
+                    value: model.outputURL.path(percentEncoded: false),
+                    icon: "square.and.arrow.down",
+                    palette: palette,
+                    action: model.chooseOutput
+                )
+
+                FlowLayout(spacing: 12) {
                     Picker("Format", selection: $model.exportFormat) {
                         ForEach(ExportFormat.allCases) { format in
                             Text(format.rawValue).tag(format)
@@ -224,15 +226,15 @@ struct StudioView: View {
         }
     }
 
-    private var visualizationPanel: some View {
+    private func visualizationPanel(width: CGFloat) -> some View {
         StudioSection(title: "Waveform, Spectrum, and Decay", palette: palette) {
             VStack(spacing: 14) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14)], spacing: 14) {
+                LazyVGrid(columns: adaptiveColumns(width: width, minimum: 260, maximumCount: 3), spacing: 14) {
                     AnalysisCard(title: "Dry", analysis: model.dryAnalysis, palette: palette)
                     AnalysisCard(title: "Impulse", analysis: model.impulseAnalysis, palette: palette)
                     AnalysisCard(title: "Rendered", analysis: model.renderedAnalysis, palette: palette)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 360), spacing: 14)], spacing: 14) {
+                LazyVGrid(columns: adaptiveColumns(width: width, minimum: 340, maximumCount: 2), spacing: 14) {
                     SpectrumCard(title: "IR Frequency Response", analysis: model.impulseAnalysis, palette: palette)
                     DecayCard(title: "IR Energy Decay", analysis: model.impulseAnalysis, palette: palette)
                 }
@@ -240,23 +242,17 @@ struct StudioView: View {
         }
     }
 
-    private var settingsPanel: some View {
+    private func settingsPanel(width: CGFloat) -> some View {
         StudioSection(title: "Mix and Transform", palette: palette) {
-            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 12) {
-                GridRow {
-                    SliderRow(title: "Dry", value: $model.settings.dryLevel, range: 0...1, suffix: "", palette: palette)
-                    SliderRow(title: "Wet", value: $model.settings.wetLevel, range: 0...1, suffix: "", palette: palette)
-                }
-                GridRow {
-                    SliderRow(title: "Pre-delay", value: $model.settings.preDelayMilliseconds, range: 0...160, suffix: " ms", palette: palette)
-                    SliderRow(title: "Decay", value: $model.settings.decayScale, range: 0.25...3, suffix: "x", palette: palette)
-                }
-                GridRow {
-                    SliderRow(title: "Low Cut", value: $model.settings.lowCutHz, range: 0...1_200, suffix: " Hz", palette: palette)
-                    SliderRow(title: "High Cut", value: $model.settings.highCutHz, range: 2_000...22_000, suffix: " Hz", palette: palette)
-                }
+            LazyVGrid(columns: adaptiveColumns(width: width, minimum: 320, maximumCount: 2), spacing: 12) {
+                SliderRow(title: "Dry", value: $model.settings.dryLevel, range: 0...1, suffix: "", palette: palette)
+                SliderRow(title: "Wet", value: $model.settings.wetLevel, range: 0...1, suffix: "", palette: palette)
+                SliderRow(title: "Pre-delay", value: $model.settings.preDelayMilliseconds, range: 0...160, suffix: " ms", palette: palette)
+                SliderRow(title: "Decay", value: $model.settings.decayScale, range: 0.25...3, suffix: "x", palette: palette)
+                SliderRow(title: "Low Cut", value: $model.settings.lowCutHz, range: 0...1_200, suffix: " Hz", palette: palette)
+                SliderRow(title: "High Cut", value: $model.settings.highCutHz, range: 2_000...22_000, suffix: " Hz", palette: palette)
             }
-            HStack {
+            FlowLayout(spacing: 16) {
                 Toggle("Reverse impulse bloom", isOn: $model.settings.reverseImpulse)
                 Toggle("Normalize output", isOn: $model.settings.normalizeOutput)
                 Toggle("Normalize wet signal", isOn: $model.settings.normalizeWetSignal)
@@ -264,46 +260,31 @@ struct StudioView: View {
         }
     }
 
-    private var professionalPanel: some View {
+    private func professionalPanel(width: CGFloat) -> some View {
         StudioSection(title: "Professional Controls", palette: palette) {
-            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 12) {
-                GridRow {
-                    SliderRow(title: "Input Gain", value: $model.settings.inputGainDB, range: -24...24, suffix: " dB", palette: palette)
-                    SliderRow(title: "Output Gain", value: $model.settings.outputGainDB, range: -24...24, suffix: " dB", palette: palette)
-                }
-                GridRow {
-                    SliderRow(title: "IR Trim Start", value: $model.settings.impulseTrimStartMilliseconds, range: 0...500, suffix: " ms", palette: palette)
-                    SliderRow(title: "IR Trim End", value: $model.settings.impulseTrimEndMilliseconds, range: 0...1_000, suffix: " ms", palette: palette)
-                }
-                GridRow {
-                    SliderRow(title: "Fade In", value: $model.settings.fadeInMilliseconds, range: 0...250, suffix: " ms", palette: palette)
-                    SliderRow(title: "Fade Out", value: $model.settings.fadeOutMilliseconds, range: 0...1_000, suffix: " ms", palette: palette)
-                }
-                GridRow {
-                    SliderRow(title: "Stereo Width", value: $model.settings.stereoWidth, range: 0...2, suffix: "x", palette: palette)
-                    SliderRow(title: "Tail Length", value: $model.settings.tailLengthSeconds, range: 0...12, suffix: " s", palette: palette)
-                }
-                GridRow {
-                    SliderRow(title: "Latency Comp", value: $model.settings.latencyCompensationMilliseconds, range: -120...120, suffix: " ms", palette: palette)
-                    EmptyView()
-                }
+            LazyVGrid(columns: adaptiveColumns(width: width, minimum: 320, maximumCount: 2), spacing: 12) {
+                SliderRow(title: "Input Gain", value: $model.settings.inputGainDB, range: -24...24, suffix: " dB", palette: palette)
+                SliderRow(title: "Output Gain", value: $model.settings.outputGainDB, range: -24...24, suffix: " dB", palette: palette)
+                SliderRow(title: "IR Trim Start", value: $model.settings.impulseTrimStartMilliseconds, range: 0...500, suffix: " ms", palette: palette)
+                SliderRow(title: "IR Trim End", value: $model.settings.impulseTrimEndMilliseconds, range: 0...1_000, suffix: " ms", palette: palette)
+                SliderRow(title: "Fade In", value: $model.settings.fadeInMilliseconds, range: 0...250, suffix: " ms", palette: palette)
+                SliderRow(title: "Fade Out", value: $model.settings.fadeOutMilliseconds, range: 0...1_000, suffix: " ms", palette: palette)
+                SliderRow(title: "Stereo Width", value: $model.settings.stereoWidth, range: 0...2, suffix: "x", palette: palette)
+                SliderRow(title: "Tail Length", value: $model.settings.tailLengthSeconds, range: 0...12, suffix: " s", palette: palette)
+                SliderRow(title: "Latency Comp", value: $model.settings.latencyCompensationMilliseconds, range: -120...120, suffix: " ms", palette: palette)
             }
             MeterRow(title: "Dry Level", analysis: model.dryAnalysis, palette: palette)
             MeterRow(title: "Rendered Level", analysis: model.renderedAnalysis, palette: palette)
         }
     }
 
-    private var customImpulsePanel: some View {
+    private func customImpulsePanel(width: CGFloat) -> some View {
         StudioSection(title: "Custom Convolution Reverb", palette: palette) {
-            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 12) {
-                GridRow {
-                    SliderRow(title: "IR Duration", value: $model.customDuration, range: 0.3...10, suffix: " s", palette: palette)
-                    SliderRow(title: "Decay", value: $model.customDecay, range: 0.5...10, suffix: "", palette: palette)
-                }
-                GridRow {
-                    SliderRow(title: "Tone", value: $model.customTone, range: 0...1, suffix: "", palette: palette)
-                    SliderRow(title: "Reflections", value: $model.customReflections, range: 0...40, suffix: "", palette: palette)
-                }
+            LazyVGrid(columns: adaptiveColumns(width: width, minimum: 320, maximumCount: 2), spacing: 12) {
+                SliderRow(title: "IR Duration", value: $model.customDuration, range: 0.3...10, suffix: " s", palette: palette)
+                SliderRow(title: "Decay", value: $model.customDecay, range: 0.5...10, suffix: "", palette: palette)
+                SliderRow(title: "Tone", value: $model.customTone, range: 0...1, suffix: "", palette: palette)
+                SliderRow(title: "Reflections", value: $model.customReflections, range: 0...40, suffix: "", palette: palette)
             }
             Button { model.generateCustomImpulse() } label: {
                 Label("Generate Custom IR", systemImage: "sparkles")
@@ -312,8 +293,8 @@ struct StudioView: View {
         }
     }
 
-    private var actionPanel: some View {
-        HStack(spacing: 12) {
+    private func actionPanel(width: CGFloat) -> some View {
+        FlowLayout(spacing: 12) {
             Button(action: model.renderPreview) {
                 Label("Preview", systemImage: "bolt.fill")
             }
@@ -342,6 +323,12 @@ struct StudioView: View {
             }
             .buttonStyle(SecondaryButtonStyle(palette: palette))
         }
+    }
+
+    private func adaptiveColumns(width: CGFloat, minimum: CGFloat, maximumCount: Int) -> [GridItem] {
+        let available = max(1, width - 56)
+        let count = max(1, min(maximumCount, Int(available / minimum)))
+        return Array(repeating: GridItem(.flexible(minimum: min(minimum, available), maximum: .infinity), spacing: 14), count: count)
     }
 }
 
@@ -401,19 +388,22 @@ private struct FileDropRow: View {
     var action: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Label(title, systemImage: icon)
-                .font(.headline)
-                .frame(width: 180, alignment: .leading)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Label(title, systemImage: icon)
+                    .font(.headline)
+                Spacer(minLength: 12)
+                Button("Choose", action: action)
+                    .buttonStyle(SecondaryButtonStyle(palette: palette))
+            }
+
             Text(value)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(palette.secondaryText)
                 .lineLimit(1)
                 .truncationMode(.middle)
-            Spacer()
-            Button("Choose", action: action)
-                .buttonStyle(SecondaryButtonStyle(palette: palette))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(palette.panelStrong, in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(palette.stroke))
@@ -428,14 +418,71 @@ private struct SliderRow: View {
     var palette: Palette
 
     var body: some View {
-        HStack(spacing: 12) {
-            Text(title).frame(width: 110, alignment: .leading)
-            Slider(value: $value, in: range)
-            Text("\(value, specifier: "%.2f")\(suffix)")
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(palette.secondaryText)
-                .frame(width: 82, alignment: .trailing)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                Text(title).frame(width: 110, alignment: .leading)
+                Slider(value: $value, in: range)
+                valueLabel
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(title)
+                    Spacer()
+                    valueLabel
+                }
+                Slider(value: $value, in: range)
+            }
         }
+    }
+
+    private var valueLabel: some View {
+        Text("\(value, specifier: "%.2f")\(suffix)")
+            .font(.system(.caption, design: .monospaced))
+            .foregroundStyle(palette.secondaryText)
+            .frame(width: 82, alignment: .trailing)
+    }
+}
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? subviews.reduce(0) { $0 + $1.sizeThatFits(.unspecified).width + spacing }
+        return layout(in: width, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = layout(in: bounds.width, subviews: subviews)
+        for item in result.items {
+            subviews[item.index].place(
+                at: CGPoint(x: bounds.minX + item.origin.x, y: bounds.minY + item.origin.y),
+                proposal: ProposedViewSize(item.size)
+            )
+        }
+    }
+
+    private func layout(in width: CGFloat, subviews: Subviews) -> (size: CGSize, items: [(index: Int, origin: CGPoint, size: CGSize)]) {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var maxWidth: CGFloat = 0
+        var items: [(Int, CGPoint, CGSize)] = []
+
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            items.append((index, CGPoint(x: x, y: y), size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+            maxWidth = max(maxWidth, x)
+        }
+
+        return (CGSize(width: min(maxWidth, width), height: y + rowHeight), items)
     }
 }
 
@@ -584,15 +631,34 @@ private struct MeterRow: View {
     var palette: Palette
 
     var body: some View {
-        HStack {
-            Text(title).frame(width: 110, alignment: .leading)
-            ProgressView(value: min(analysis?.waveform.peak ?? 0, 1))
-                .progressViewStyle(.linear)
-            Text("\(analysis?.waveform.peak ?? 0, specifier: "%.2f")")
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(palette.secondaryText)
-                .frame(width: 50, alignment: .trailing)
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                Text(title).frame(width: 110, alignment: .leading)
+                meter
+                value
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(title)
+                    Spacer()
+                    value
+                }
+                meter
+            }
         }
+    }
+
+    private var meter: some View {
+        ProgressView(value: min(analysis?.waveform.peak ?? 0, 1))
+            .progressViewStyle(.linear)
+    }
+
+    private var value: some View {
+        Text("\(analysis?.waveform.peak ?? 0, specifier: "%.2f")")
+            .font(.system(.caption, design: .monospaced))
+            .foregroundStyle(palette.secondaryText)
+            .frame(width: 50, alignment: .trailing)
     }
 }
 
