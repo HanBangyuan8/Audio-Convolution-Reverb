@@ -9,10 +9,11 @@ struct StudioView: View {
     private var palette: Palette { Palette(colorScheme) }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HSplitView {
             sidebar
-            Divider()
+                .frame(minWidth: 300, idealWidth: 340, maxWidth: 440)
             mainPanel
+                .frame(minWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(palette.background)
         .foregroundStyle(palette.primaryText)
@@ -116,12 +117,12 @@ struct StudioView: View {
             }
         }
         .padding(22)
-        .frame(width: 330)
+        .frame(minWidth: 300, maxWidth: .infinity)
         .background(palette.sidebar)
     }
 
     private var mainPanel: some View {
-        ScrollView {
+        ScrollView([.vertical, .horizontal]) {
             VStack(alignment: .leading, spacing: 18) {
                 hero
                 transportPanel
@@ -133,6 +134,7 @@ struct StudioView: View {
                 actionPanel
             }
             .padding(28)
+            .frame(minWidth: 780, maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -225,12 +227,12 @@ struct StudioView: View {
     private var visualizationPanel: some View {
         StudioSection(title: "Waveform, Spectrum, and Decay", palette: palette) {
             VStack(spacing: 14) {
-                HStack(spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14)], spacing: 14) {
                     AnalysisCard(title: "Dry", analysis: model.dryAnalysis, palette: palette)
                     AnalysisCard(title: "Impulse", analysis: model.impulseAnalysis, palette: palette)
                     AnalysisCard(title: "Rendered", analysis: model.renderedAnalysis, palette: palette)
                 }
-                HStack(spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 360), spacing: 14)], spacing: 14) {
                     SpectrumCard(title: "IR Frequency Response", analysis: model.impulseAnalysis, palette: palette)
                     DecayCard(title: "IR Energy Decay", analysis: model.impulseAnalysis, palette: palette)
                 }

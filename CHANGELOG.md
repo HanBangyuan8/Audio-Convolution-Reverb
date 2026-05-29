@@ -2,7 +2,7 @@
 
 ## v1.1.0 - 2026-05-29
 
-Major app release.
+Major release.
 
 - Added automatic light/dark appearance using the system color scheme.
 - Added in-app playback for dry, rendered, and impulse response files with A/B switching.

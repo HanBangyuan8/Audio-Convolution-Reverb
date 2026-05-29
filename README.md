@@ -136,7 +136,7 @@ Render history and presets are stored locally at:
 
 ## Release
 
-Download v1.0.0 and newer source packages from [GitHub Releases](https://github.com/HanBangyuan8/Audio-Convolution-Reverb/releases).
+Download v1.0.0 and newer app and source packages from [GitHub Releases](https://github.com/HanBangyuan8/Audio-Convolution-Reverb/releases).
 
 Release notes are maintained in `CHANGELOG.md`.
 
