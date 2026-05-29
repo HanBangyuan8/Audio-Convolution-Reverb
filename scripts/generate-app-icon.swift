@@ -30,10 +30,11 @@ func writeIcon(size: Int, name: String) throws {
     let image = NSImage(size: rect.size)
     image.lockFocus()
 
+    let iconRect = rect.insetBy(dx: CGFloat(size) * 0.14, dy: CGFloat(size) * 0.14)
     let background = NSBezierPath(
-        roundedRect: rect.insetBy(dx: CGFloat(size) * 0.06, dy: CGFloat(size) * 0.06),
-        xRadius: CGFloat(size) * 0.22,
-        yRadius: CGFloat(size) * 0.22
+        roundedRect: iconRect,
+        xRadius: CGFloat(size) * 0.18,
+        yRadius: CGFloat(size) * 0.18
     )
     NSGradient(colors: [
         NSColor(calibratedRed: 0.05, green: 0.13, blue: 0.18, alpha: 1),
@@ -45,7 +46,7 @@ func writeIcon(size: Int, name: String) throws {
     background.lineWidth = max(1, CGFloat(size) * 0.012)
     background.stroke()
 
-    let waveRect = rect.insetBy(dx: CGFloat(size) * 0.18, dy: CGFloat(size) * 0.25)
+    let waveRect = rect.insetBy(dx: CGFloat(size) * 0.28, dy: CGFloat(size) * 0.34)
     let centerY = waveRect.midY
     let wave = NSBezierPath()
     wave.move(to: NSPoint(x: waveRect.minX, y: centerY))
@@ -66,19 +67,19 @@ func writeIcon(size: Int, name: String) throws {
     NSColor.white.setStroke()
     wave.lineCapStyle = .round
     wave.lineJoinStyle = .round
-    wave.lineWidth = max(2, CGFloat(size) * 0.070)
+    wave.lineWidth = max(2, CGFloat(size) * 0.052)
     wave.stroke()
 
     let echo = NSBezierPath()
-    echo.move(to: NSPoint(x: waveRect.minX + waveRect.width * 0.08, y: centerY - waveRect.height * 0.30))
+    echo.move(to: NSPoint(x: waveRect.minX + waveRect.width * 0.08, y: centerY - waveRect.height * 0.34))
     echo.curve(
-        to: NSPoint(x: waveRect.maxX - waveRect.width * 0.08, y: centerY - waveRect.height * 0.30),
-        controlPoint1: NSPoint(x: waveRect.minX + waveRect.width * 0.34, y: centerY - waveRect.height * 0.58),
-        controlPoint2: NSPoint(x: waveRect.maxX - waveRect.width * 0.34, y: centerY - waveRect.height * 0.02)
+        to: NSPoint(x: waveRect.maxX - waveRect.width * 0.08, y: centerY - waveRect.height * 0.34),
+        controlPoint1: NSPoint(x: waveRect.minX + waveRect.width * 0.34, y: centerY - waveRect.height * 0.62),
+        controlPoint2: NSPoint(x: waveRect.maxX - waveRect.width * 0.34, y: centerY - waveRect.height * 0.06)
     )
     NSColor.white.withAlphaComponent(0.42).setStroke()
     echo.lineCapStyle = .round
-    echo.lineWidth = max(1, CGFloat(size) * 0.034)
+    echo.lineWidth = max(1, CGFloat(size) * 0.026)
     echo.stroke()
 
     image.unlockFocus()

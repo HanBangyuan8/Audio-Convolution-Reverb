@@ -7,15 +7,16 @@ struct StudioView: View {
     @StateObject private var model = StudioViewModel()
 
     private var palette: Palette { Palette(colorScheme) }
+    private let mainContentWidth: CGFloat = 980
 
     var body: some View {
-        HSplitView {
+        NavigationSplitView {
             sidebar
-                .frame(minWidth: 280, idealWidth: 320, maxWidth: 420)
+                .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
+        } detail: {
             mainPanel
-                .frame(minWidth: 500, maxWidth: .infinity, maxHeight: .infinity)
-                .layoutPriority(1)
         }
+        .navigationSplitViewStyle(.balanced)
         .background(palette.background)
         .foregroundStyle(palette.primaryText)
         .onReceive(NotificationCenter.default.publisher(for: .renderRequested)) { _ in
@@ -24,121 +25,122 @@ struct StudioView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Audio Convolution")
-                    .font(.system(size: 25, weight: .bold, design: .rounded))
-                Text("Reverb Studio")
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(palette.accent)
-            }
-
-            HStack(spacing: 10) {
-                StatTile(title: "History", value: "\(model.renders.count)", palette: palette)
-                StatTile(title: "Presets", value: "\(model.presets.count)", palette: palette)
-            }
-
-            TextField("Search renders", text: $model.renderSearch)
-                .textFieldStyle(.roundedBorder)
-                .onChange(of: model.renderSearch) { _ in model.refresh() }
-
-            SidebarHeader(title: "Presets", palette: palette) {
-                Button(action: model.importPresets) { Image(systemName: "square.and.arrow.down") }
-                Button(action: model.exportPresets) { Image(systemName: "square.and.arrow.up") }
-            }
-
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(model.presets) { preset in
-                        Button { model.applyPreset(preset) } label: {
-                            HStack {
-                                Image(systemName: "slider.horizontal.3")
-                                    .foregroundStyle(palette.accent)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(preset.name)
-                                        .font(.subheadline.weight(.semibold))
-                                    Text("Wet \(preset.settings.wetLevel, specifier: "%.2f") · Dry \(preset.settings.dryLevel, specifier: "%.2f")")
-                                        .font(.caption)
-                                        .foregroundStyle(palette.secondaryText)
-                                }
-                                Spacer()
-                            }
-                            .padding(10)
-                            .background(palette.panel, in: RoundedRectangle(cornerRadius: 8))
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Rename") { model.renamePreset(preset) }
-                            Button("Delete", role: .destructive) { model.deletePreset(preset) }
-                        }
-                    }
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Audio Convolution")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                    Text("Reverb Studio")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(palette.accent)
                 }
+                .padding(.vertical, 6)
             }
-            .frame(maxHeight: 180)
 
-            SidebarHeader(title: "Recent Renders", palette: palette) {}
+            Section {
+                HStack(spacing: 10) {
+                    StatTile(title: "History", value: "\(model.renders.count)", palette: palette)
+                    StatTile(title: "Presets", value: "\(model.presets.count)", palette: palette)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+            }
 
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(model.renders) { render in
-                        Button { model.reopenRender(render) } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(render.name)
-                                    .font(.caption.weight(.semibold))
-                                    .lineLimit(1)
-                                Text("\(render.sampleRate) Hz · \(render.duration, specifier: "%.1f") s")
-                                    .font(.caption2)
+            Section {
+                TextField("Search renders", text: $model.renderSearch)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: model.renderSearch) { _ in model.refresh() }
+            }
+
+            Section {
+                ForEach(model.presets) { preset in
+                    Button { model.applyPreset(preset) } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preset.name)
+                                    .font(.subheadline.weight(.semibold))
+                                Text("Wet \(preset.settings.wetLevel, specifier: "%.2f") · Dry \(preset.settings.dryLevel, specifier: "%.2f")")
+                                    .font(.caption)
                                     .foregroundStyle(palette.secondaryText)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(9)
-                            .background(palette.panel, in: RoundedRectangle(cornerRadius: 8))
+                        } icon: {
+                            Image(systemName: "slider.horizontal.3")
+                                .foregroundStyle(palette.accent)
                         }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Open") { model.reopenRender(render) }
-                            Button("Reveal in Finder") { model.revealRender(render) }
-                            Button("Rename") { model.renameRender(render) }
-                            Button("Delete", role: .destructive) { model.deleteRender(render) }
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Rename") { model.renamePreset(preset) }
+                        Button("Delete", role: .destructive) { model.deletePreset(preset) }
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Presets")
+                    Spacer()
+                    Button(action: model.importPresets) { Image(systemName: "square.and.arrow.down") }
+                    Button(action: model.exportPresets) { Image(systemName: "square.and.arrow.up") }
+                }
+                .buttonStyle(.borderless)
+            }
+
+            Section("Recent Renders") {
+                ForEach(model.renders) { render in
+                    Button { model.reopenRender(render) } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(render.name)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                            Text("\(render.sampleRate) Hz · \(render.duration, specifier: "%.1f") s")
+                                .font(.caption2)
+                                .foregroundStyle(palette.secondaryText)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Open") { model.reopenRender(render) }
+                        Button("Reveal in Finder") { model.revealRender(render) }
+                        Button("Rename") { model.renameRender(render) }
+                        Button("Delete", role: .destructive) { model.deleteRender(render) }
                     }
                 }
             }
 
-            Spacer()
-            VStack(alignment: .leading, spacing: 8) {
-                if model.isRendering {
-                    ProgressView(value: model.renderProgress)
-                        .progressViewStyle(.linear)
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    if model.isRendering {
+                        ProgressView(value: model.renderProgress)
+                            .progressViewStyle(.linear)
+                    }
+                    Text(model.status)
+                        .font(.caption)
+                        .foregroundStyle(model.isRendering ? palette.accent : palette.secondaryText)
+                        .lineLimit(4)
                 }
-                Text(model.status)
-                    .font(.caption)
-                    .foregroundStyle(model.isRendering ? palette.accent : palette.secondaryText)
-                    .lineLimit(3)
             }
         }
-        .padding(22)
-        .frame(minWidth: 280, maxWidth: .infinity)
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
         .background(palette.sidebar)
     }
 
     private var mainPanel: some View {
-        GeometryReader { geometry in
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 18) {
-                    hero
-                    transportPanel(width: geometry.size.width)
-                    filePanel(width: geometry.size.width)
-                    visualizationPanel(width: geometry.size.width)
-                    settingsPanel(width: geometry.size.width)
-                    professionalPanel(width: geometry.size.width)
-                    customImpulsePanel(width: geometry.size.width)
-                    actionPanel(width: geometry.size.width)
-                }
-                .padding(28)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 18) {
+                hero
+                transportPanel(width: mainContentWidth)
+                filePanel(width: mainContentWidth)
+                visualizationPanel(width: mainContentWidth)
+                settingsPanel(width: mainContentWidth)
+                professionalPanel(width: mainContentWidth)
+                customImpulsePanel(width: mainContentWidth)
+                actionPanel(width: mainContentWidth)
             }
+            .padding(28)
+            .frame(width: mainContentWidth, alignment: .topLeading)
         }
+        .frame(minWidth: mainContentWidth, maxWidth: .infinity, maxHeight: .infinity)
+        .background(palette.background)
     }
 
     private var hero: some View {

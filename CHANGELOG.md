@@ -14,7 +14,7 @@ Major release.
 - Added render progress, cancellation, and clearer error recovery.
 - Expanded SQLite history and preset management with search, rename, delete, reveal, import, and export.
 - Added professional reverb controls for gain staging, IR trim, fades, stereo width, wet normalization, latency compensation, and tail length.
-- Added About and Preferences windows, Resources-based app icon support, DMG packaging, and broader regression tests.
+- Added About and Preferences windows, Resources-based app icon support, DMG packaging with an Applications shortcut, and broader regression tests.
 
 ## v1.0.0 - 2026-05-29
 
