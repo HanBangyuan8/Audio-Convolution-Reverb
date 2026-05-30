@@ -9,6 +9,10 @@
 
 A native macOS convolution reverb studio with a SwiftUI front end, Swift FFT audio engine, SQLite history database, and the original notebook algorithm preserved as Python source.
 
+<p align="center">
+  <img src="assets/app-icon/app-icon.png" alt="Audio Convolution Reverb app icon" width="160">
+</p>
+
 ## Features
 
 - Generate logarithmic sine sweeps for room recording
