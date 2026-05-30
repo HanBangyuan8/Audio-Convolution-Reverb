@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audio-convolution-reverb"
-version = "1.1.1"
-description = "A reusable convolution reverb tool built from the original portfolio notebook."
+version = "1.1.2"
+description = "A reusable convolution reverb tool built from the original notebook workflow."
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT"
+license = "MPL-2.0"
 authors = [{ name = "Han Bangyuan" }]
-keywords = ["audio", "convolution", "reverb", "impulse-response", "portfolio"]
+keywords = ["audio", "convolution", "reverb", "impulse-response", "macos"]
 dependencies = [
   "numpy>=1.24",
   "scipy>=1.10",

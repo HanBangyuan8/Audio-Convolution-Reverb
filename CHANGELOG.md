@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.2 - 2026-05-30
+
+Patch release.
+
+- Changed the project license from MIT to Mozilla Public License 2.0.
+- Updated the root `LICENSE` file to the standard MPL-2.0 text so GitHub can identify it.
+- Updated package metadata and README license references to `MPL-2.0`.
+- Removed remaining portfolio wording from package metadata.
+
 ## v1.1.1 - 2026-05-30
 
 Patch release.

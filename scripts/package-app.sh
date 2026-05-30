@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 APP_NAME="Audio Convolution Reverb"
 BUNDLE_ID="com.hanbangyuan.audio-convolution-reverb"
-VERSION="1.1.1"
+VERSION="1.1.2"
 DIST_DIR="$ROOT_DIR/dist"
 STAGE_DIR="${TMPDIR:-/tmp}/audio-convolution-reverb-package"
 APP_DIR="$STAGE_DIR/$APP_NAME.app"
