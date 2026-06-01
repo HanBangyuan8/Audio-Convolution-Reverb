@@ -25,16 +25,26 @@ let variants: [(Int, String)] = [
     (1024, "icon_512x512@2x.png")
 ]
 
+let artworkScale: CGFloat = 832.0 / 1024.0
+
 func writeIcon(size: Int, name: String) throws {
     let rect = NSRect(x: 0, y: 0, width: size, height: size)
     let image = NSImage(size: rect.size)
     image.lockFocus()
 
-    let iconRect = rect.insetBy(dx: CGFloat(size) * 0.14, dy: CGFloat(size) * 0.14)
+    let artworkSize = CGFloat(size) * artworkScale
+    let iconRect = NSRect(
+        x: (CGFloat(size) - artworkSize) / 2,
+        y: (CGFloat(size) - artworkSize) / 2,
+        width: artworkSize,
+        height: artworkSize
+    )
+    let outlineWidth = max(1, CGFloat(size) * 0.012)
+    let backgroundRect = iconRect.insetBy(dx: outlineWidth / 2, dy: outlineWidth / 2)
     let background = NSBezierPath(
-        roundedRect: iconRect,
-        xRadius: CGFloat(size) * 0.18,
-        yRadius: CGFloat(size) * 0.18
+        roundedRect: backgroundRect,
+        xRadius: backgroundRect.width * 0.22,
+        yRadius: backgroundRect.height * 0.22
     )
     NSGradient(colors: [
         NSColor(calibratedRed: 0.05, green: 0.13, blue: 0.18, alpha: 1),
@@ -43,10 +53,10 @@ func writeIcon(size: Int, name: String) throws {
     ])?.draw(in: background, angle: 135)
 
     NSColor.white.withAlphaComponent(0.22).setStroke()
-    background.lineWidth = max(1, CGFloat(size) * 0.012)
+    background.lineWidth = outlineWidth
     background.stroke()
 
-    let waveRect = rect.insetBy(dx: CGFloat(size) * 0.28, dy: CGFloat(size) * 0.34)
+    let waveRect = iconRect.insetBy(dx: iconRect.width * 0.20, dy: iconRect.height * 0.27)
     let centerY = waveRect.midY
     let wave = NSBezierPath()
     wave.move(to: NSPoint(x: waveRect.minX, y: centerY))
