@@ -34,4 +34,4 @@ audio-reverb-gui = "audio_convolution_reverb.gui:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["Tests/Python"]

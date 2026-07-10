@@ -29,15 +29,15 @@ A native macOS convolution reverb studio with a SwiftUI front end, Swift FFT aud
 
 ## Screenshots
 
-<img src="screenshot1.png" alt="Audio Convolution Reverb app" width="900">
+<img src="assets/screenshots/screenshot1.png" alt="Audio Convolution Reverb app" width="900">
 
 ## Early Test Results
 
 These two images were extracted from the original notebook and kept as early project output.
 
-<img src="assets/early-test-results/bedroom-analysis.png" alt="Bedroom early impulse response analysis" width="900">
+<img src="assets/analysis/bedroom-analysis.png" alt="Bedroom early impulse response analysis" width="900">
 
-<img src="assets/early-test-results/bathroom-analysis.png" alt="Bathroom early impulse response analysis" width="900">
+<img src="assets/analysis/bathroom-analysis.png" alt="Bathroom early impulse response analysis" width="900">
 
 ## Requirements
 

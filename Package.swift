@@ -28,7 +28,7 @@ let package = Package(
         .testTarget(
             name: "AudioConvolutionReverbCoreTests",
             dependencies: ["AudioConvolutionReverbCore"],
-            path: "tests/AudioConvolutionReverbCoreTests"
+            path: "Tests/Swift/AudioConvolutionReverbCoreTests"
         )
     ]
 )
