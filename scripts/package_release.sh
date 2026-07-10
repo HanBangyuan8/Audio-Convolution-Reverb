@@ -14,7 +14,7 @@ fi
 "$PYTHON_BIN" -m build --no-isolation
 
 VERSION="$("$PYTHON_BIN" -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
-git archive --format=zip --output="dist/Audio-Convolution-Reverb-v${VERSION}.zip" HEAD
+git archive --format=zip --output="dist/Audio-Convolution-Reverb-v${VERSION}-source.zip" HEAD
 
 echo "Release artifacts:"
 ls -lh dist

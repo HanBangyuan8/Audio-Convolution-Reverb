@@ -11,7 +11,8 @@ DIST_DIR="$ROOT_DIR/dist"
 STAGE_DIR="${TMPDIR:-/tmp}/audio-convolution-reverb-package"
 APP_DIR="$STAGE_DIR/$APP_NAME.app"
 DMG_ROOT="$STAGE_DIR/dmg-root"
-FINAL_APP_DIR="$DIST_DIR/$APP_NAME.app"
+ARTIFACT_BASENAME="Audio-Convolution-Reverb-v${VERSION}-macOS-universal"
+FINAL_APP_DIR="$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}.app"
 ICON_SOURCE="$ROOT_DIR/Resources/AppIcon.icns"
 
 clean_bundle_metadata() {
@@ -37,7 +38,7 @@ swift build -c release --arch arm64 --arch x86_64
 BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 
 cp "$BIN_PATH/$APP_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
-cp "$BIN_PATH/audio-reverb-swift" "$DIST_DIR/audio-reverb-swift"
+cp "$BIN_PATH/audio-reverb-swift" "$DIST_DIR/${ARTIFACT_BASENAME}-cli"
 if [[ -f "$ICON_SOURCE" ]]; then
   cp "$ICON_SOURCE" "$APP_DIR/Contents/Resources/AppIcon.icns"
 fi
@@ -78,12 +79,12 @@ clean_bundle_metadata "$APP_DIR"
 codesign --force --deep --sign - "$APP_DIR"
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 
-ditto --norsrc -c -k --keepParent "$APP_DIR" "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}-macOS-universal.zip"
+ditto --norsrc -c -k --keepParent "$APP_DIR" "$DIST_DIR/${ARTIFACT_BASENAME}.zip"
 mkdir -p "$DMG_ROOT"
 ditto --norsrc "$APP_DIR" "$DMG_ROOT/$APP_NAME.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 clean_bundle_metadata "$DMG_ROOT"
-hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DIST_DIR/Audio-Convolution-Reverb-v${VERSION}.dmg"
+hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DIST_DIR/${ARTIFACT_BASENAME}.dmg"
 ditto --norsrc "$APP_DIR" "$FINAL_APP_DIR"
 clean_bundle_metadata "$FINAL_APP_DIR"
 for attempt in 1 2 3; do
