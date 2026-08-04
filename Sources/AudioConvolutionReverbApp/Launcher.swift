@@ -31,7 +31,9 @@ struct NativeAudioConvolutionReverbApp: App {
     var body: some Scene {
         WindowGroup {
             StudioView(model: model)
+                .background(LaunchWindowSizeResetter(width: 1100, height: 820))
         }
+        .defaultSize(width: 1100, height: 820)
 
         Settings {
             StudioView(model: model)
@@ -52,12 +54,49 @@ struct NativeAudioConvolutionReverbApp: App {
     }
 }
 
+@available(macOS 13.0, *)
+private struct LaunchWindowSizeResetter: NSViewRepresentable {
+    let width: CGFloat
+    let height: CGFloat
+
+    func makeNSView(context: Context) -> LaunchWindowSizingView {
+        LaunchWindowSizingView(contentSize: NSSize(width: width, height: height))
+    }
+
+    func updateNSView(_ nsView: LaunchWindowSizingView, context: Context) {}
+}
+
+@available(macOS 13.0, *)
+private final class LaunchWindowSizingView: NSView {
+    private let launchContentSize: NSSize
+    private var didApplyLaunchSize = false
+
+    init(contentSize: NSSize) {
+        launchContentSize = contentSize
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard !didApplyLaunchSize, let window else { return }
+        didApplyLaunchSize = true
+        window.contentMinSize = launchContentSize
+        window.setContentSize(launchContentSize)
+        window.center()
+    }
+}
+
 enum ReverbAboutPanelPresenter {
     @MainActor
     static func show() {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "1.2.0"
-        let build = info?["CFBundleVersion"] as? String ?? "2"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "1.3.0"
+        let build = info?["CFBundleVersion"] as? String ?? "3"
         NSApplication.shared.orderFrontStandardAboutPanel(options: [
             .applicationName: "Audio Convolution Reverb",
             .applicationVersion: version,

@@ -32,11 +32,11 @@ public struct AudioAnalysis: Codable, Equatable, Sendable {
 }
 
 public enum AudioAnalyzer {
-    public static func analyze(_ buffer: AudioBuffer, points: Int = 180) -> AudioAnalysis {
+    public static func analyze(_ buffer: AudioBuffer, points: Int = 180, spectrumBins: Int = 96) -> AudioAnalysis {
         let mono = buffer.monoSamples
         return AudioAnalysis(
             waveform: waveform(mono, sampleRate: buffer.sampleRate, points: points),
-            spectrum: spectrum(mono, sampleRate: buffer.sampleRate, bins: 96),
+            spectrum: spectrum(mono, sampleRate: buffer.sampleRate, bins: spectrumBins),
             decay: decay(mono, points: points)
         )
     }

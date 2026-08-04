@@ -194,7 +194,6 @@ private struct ReverbNativeContentView: View {
     private var accentColor: Color { AccentColorOption.option(for: accentColorID).color }
     private var profile: VersionedMotionProfile { VersionedMotionProfile(runtimeProfile: .current, intensity: motionIntensity) }
     private var interfaceAnimation: Animation? { reduceMotion || motionIntensity == .none ? nil : profile.pageSwitchAnimation }
-    private var pageTransition: AnyTransition { navigationDirection.transition(reduceMotion: reduceMotion, intensity: motionIntensity) }
     private var pageOrder: [String] { ["overview", "workspace"] + model.presets.map { "preset:\($0.id)" } + model.renders.map { "render:\($0.id)" } }
 
     var body: some View {
@@ -217,15 +216,12 @@ private struct ReverbNativeContentView: View {
                 navigationDirection: navigationDirection,
                 profile: profile,
                 accentColor: accentColor,
-                pageTransition: pageTransition,
-                interfaceAnimation: interfaceAnimation,
                 showsInlineActions: false
             )
             .navigationTitle("Convolution Reverb")
         }
-        .frame(minWidth: 1100, minHeight: 760)
+        .frame(minWidth: 1100, minHeight: 820)
         .tint(accentColor)
-        .animation(interfaceAnimation, value: selectedSidebarPage)
         .animation(interfaceAnimation, value: accentColorID)
         .animation(interfaceAnimation, value: motionIntensityID)
         .versionedStartupMotion(profile: profile)
@@ -260,7 +256,7 @@ private struct ReverbNativeContentView: View {
         let currentIndex = pageOrder.firstIndex(of: selectedSidebarPage) ?? 0
         let nextIndex = pageOrder.firstIndex(of: page) ?? currentIndex
         navigationDirection = nextIndex >= currentIndex ? .downward : .upward
-        withAnimation(interfaceAnimation) { selectedSidebarPage = page }
+        selectedSidebarPage = page
     }
 
     private var canProcess: Bool {
@@ -280,7 +276,6 @@ private struct ReverbCompatibilityContentView: View {
     private var accentColor: Color { AccentColorOption.option(for: accentColorID).color }
     private var profile: VersionedMotionProfile { VersionedMotionProfile(runtimeProfile: .current, intensity: motionIntensity) }
     private var interfaceAnimation: Animation? { reduceMotion || motionIntensity == .none ? nil : profile.pageSwitchAnimation }
-    private var pageTransition: AnyTransition { navigationDirection.transition(reduceMotion: reduceMotion, intensity: motionIntensity) }
     private var pageOrder: [String] { ["overview", "workspace"] + model.presets.map { "preset:\($0.id)" } + model.renders.map { "render:\($0.id)" } }
 
     var body: some View {
@@ -305,13 +300,11 @@ private struct ReverbCompatibilityContentView: View {
                 navigationDirection: navigationDirection,
                 profile: profile,
                 accentColor: accentColor,
-                pageTransition: pageTransition,
-                interfaceAnimation: interfaceAnimation,
                 showsInlineActions: true
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 1010, minHeight: 760)
+        .frame(minWidth: 1010, minHeight: 820)
         .compatibleTint(accentColor)
         .background(
             LinearGradient(
@@ -323,7 +316,6 @@ private struct ReverbCompatibilityContentView: View {
                 endPoint: .bottomTrailing
             )
         )
-        .animation(interfaceAnimation, value: selectedSidebarPage)
         .animation(interfaceAnimation, value: accentColorID)
         .animation(interfaceAnimation, value: motionIntensityID)
         .versionedStartupMotion(profile: profile)
@@ -334,7 +326,7 @@ private struct ReverbCompatibilityContentView: View {
         let currentIndex = pageOrder.firstIndex(of: selectedSidebarPage) ?? 0
         let nextIndex = pageOrder.firstIndex(of: page) ?? currentIndex
         navigationDirection = nextIndex >= currentIndex ? .downward : .upward
-        withAnimation(interfaceAnimation) { selectedSidebarPage = page }
+        selectedSidebarPage = page
     }
 }
 
@@ -457,58 +449,55 @@ private struct ReverbDetailRouter: View {
     let navigationDirection: PageNavigationDirection
     let profile: VersionedMotionProfile
     let accentColor: Color
-    let pageTransition: AnyTransition
-    let interfaceAnimation: Animation?
     let showsInlineActions: Bool
 
     var body: some View {
-        GeometryReader { geometry in
-            if selectedPage == "workspace" || selectedPage.hasPrefix("preset:") {
-                VStack(spacing: 0) {
-                    if showsInlineActions {
-                        ReverbActionStrip(model: model, accentColor: accentColor)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 16)
-                    }
+        let isWorkspace = selectedPage == "workspace" || selectedPage.hasPrefix("preset:")
+        VStack(spacing: 0) {
+            if showsInlineActions {
+                ReverbActionStrip(model: model, accentColor: accentColor)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+            }
+
+            GeometryReader { geometry in
+                ZStack {
                     ReverbWorkspacePage(
                         model: model,
-                        availableHeight: geometry.size.height,
                         profile: profile,
                         accentColor: accentColor,
                         pageID: selectedPage,
                         navigationDirection: navigationDirection
                     )
                     .padding(20)
-                }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .id(selectedPage)
-                    .transition(pageTransition)
-                    .versionedPageSwitchMotion(profile: profile, pageID: selectedPage, direction: navigationDirection)
                     .coordinateSpace(name: "detailScroll")
-            } else {
-                VStack(spacing: 0) {
-                    if showsInlineActions {
-                        ReverbActionStrip(model: model, accentColor: accentColor)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 16)
-                    }
-                    ScrollViewReader { scrollProxy in
-                        ScrollView {
-                            Color.clear.frame(height: 0).id("detailTop")
-                            ReverbOverviewPage(model: model, pageID: selectedPage, navigationDirection: navigationDirection, profile: profile, accentColor: accentColor)
-                                .padding(20)
-                                .id(selectedPage)
-                                .transition(pageTransition)
-                        }
-                        .versionedPageSwitchMotion(profile: profile, pageID: selectedPage, direction: navigationDirection)
-                        .coordinateSpace(name: "detailScroll")
-                        .onChange(of: selectedPage) { _ in
-                            withAnimation(interfaceAnimation) { scrollProxy.scrollTo("detailTop", anchor: .top) }
-                        }
-                        .onAppear {
-                            scrollProxy.scrollTo("detailTop", anchor: .top)
-                        }
-                    }
+                    .versionedPersistentPageMotion(
+                        profile: profile,
+                        isSelected: isWorkspace,
+                        direction: navigationDirection,
+                        pageID: selectedPage,
+                        scalesContent: false
+                    )
+
+                    ReverbOverviewPage(
+                        model: model,
+                        pageID: selectedPage,
+                        navigationDirection: navigationDirection,
+                        profile: profile,
+                        accentColor: accentColor,
+                        availableWidth: geometry.size.width,
+                        availableHeight: geometry.size.height
+                    )
+                    .padding(20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .coordinateSpace(name: "detailScroll")
+                    .versionedPersistentPageMotion(
+                        profile: profile,
+                        isSelected: !isWorkspace,
+                        direction: navigationDirection,
+                        pageID: selectedPage
+                    )
                 }
             }
         }
@@ -572,20 +561,25 @@ private struct ReverbOverviewPage: View {
     let navigationDirection: PageNavigationDirection
     let profile: VersionedMotionProfile
     let accentColor: Color
+    var availableWidth: CGFloat? = nil
+    var availableHeight: CGFloat? = nil
 
     var body: some View {
+        let contentWidth = max(0, (availableWidth ?? 0) - 40)
+        let statCardWidth = max(120, (contentWidth - 48) / 5)
         VStack(alignment: .leading, spacing: 12) {
             Text(pageID.hasPrefix("render:") ? (model.renderedURL?.lastPathComponent ?? "Render") : "Studio Overview")
                 .font(.title2.bold())
                 .versionedComponentAppear(profile: profile, pageID: pageID, direction: navigationDirection)
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 12)], spacing: 12) {
-                StatCard(title: "Renders", value: "\(model.renders.count)", compact: true)
-                StatCard(title: "Presets", value: "\(model.presets.count)", compact: true)
-                StatCard(title: "Dry Duration", value: duration(model.dryAnalysis), compact: true)
-                StatCard(title: "IR Duration", value: duration(model.impulseAnalysis), compact: true)
-                StatCard(title: "Output Duration", value: duration(model.renderedAnalysis), compact: true)
+            HStack(spacing: 12) {
+                StatCard(title: "Renders", value: "\(model.renders.count)", compact: true).frame(width: statCardWidth)
+                StatCard(title: "Presets", value: "\(model.presets.count)", compact: true).frame(width: statCardWidth)
+                StatCard(title: "Dry Duration", value: duration(model.dryAnalysis), compact: true).frame(width: statCardWidth)
+                StatCard(title: "IR Duration", value: duration(model.impulseAnalysis), compact: true).frame(width: statCardWidth)
+                StatCard(title: "Output Duration", value: duration(model.renderedAnalysis), compact: true).frame(width: statCardWidth)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .versionedComponentAppear(profile: profile, pageID: pageID, direction: navigationDirection)
 
             Text("Session Files").font(.title3.bold())
@@ -606,9 +600,16 @@ private struct ReverbOverviewPage: View {
 
             Text("Audio Analysis").font(.title3.bold())
                 .versionedComponentAppear(profile: profile, pageID: pageID, direction: navigationDirection)
-            ReverbAnalysisGrid(model: model, accentColor: accentColor)
+            ReverbAnalysisGrid(
+                model: model,
+                accentColor: accentColor,
+                availableWidth: availableWidth,
+                availableHeight: availableHeight
+            )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .versionedComponentAppear(profile: profile, pageID: pageID, direction: navigationDirection, isChart: true)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func duration(_ analysis: AudioAnalysis?) -> String {
@@ -670,6 +671,9 @@ private struct ReverbPlayback: View {
             SettingsRow(title: "Preview Length") {
                 HStack {
                     Slider(value: $model.previewSeconds, in: 2...30)
+                        .transaction { transaction in
+                            transaction.animation = nil
+                        }
                     Text("\(model.previewSeconds, specifier: "%.1f") s").monospacedDigit().frame(width: 72, alignment: .trailing)
                 }
             }
@@ -679,7 +683,6 @@ private struct ReverbPlayback: View {
 
 private struct ReverbWorkspacePage: View {
     @ObservedObject var model: StudioViewModel
-    let availableHeight: CGFloat
     let profile: VersionedMotionProfile
     let accentColor: Color
     let pageID: String
@@ -689,24 +692,10 @@ private struct ReverbWorkspacePage: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Reverb Workspace").font(.title2.bold())
                 .versionedComponentAppear(profile: profile, pageID: pageID, direction: navigationDirection)
-            ScrollViewReader { scrollProxy in
-                ScrollView {
-                    Color.clear
-                        .frame(height: 0)
-                        .id("workspaceTop")
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        settingsSection("Mix and Transform", index: 0) { mixRows }
-                        settingsSection("Professional Controls", index: 1) { professionalRows }
-                        settingsSection("Custom Impulse Response", index: 2) { customRows }
-                    }
-                }
-                .onAppear {
-                    scrollProxy.scrollTo("workspaceTop", anchor: .top)
-                }
-                .onChange(of: pageID) { _ in
-                    scrollProxy.scrollTo("workspaceTop", anchor: .top)
-                }
+            VStack(alignment: .leading, spacing: 8) {
+                settingsSection("Mix and Transform", index: 0) { mixRows }
+                settingsSection("Professional Controls", index: 1) { professionalRows }
+                settingsSection("Custom Impulse Response", index: 2) { customRows }
             }
             .versionedComponentAppear(profile: profile, pageID: pageID, direction: navigationDirection)
         }
@@ -772,6 +761,9 @@ private struct ReverbWorkspacePage: View {
         SettingsRow(title: title) {
             HStack {
                 Slider(value: value, in: range)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
                 Text("\(value.wrappedValue, specifier: "%.2f")\(suffix)")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
@@ -784,17 +776,59 @@ private struct ReverbWorkspacePage: View {
 private struct ReverbAnalysisGrid: View {
     @ObservedObject var model: StudioViewModel
     let accentColor: Color
+    var availableWidth: CGFloat? = nil
+    var availableHeight: CGFloat? = nil
+    @State private var bottomChartHeight: CGFloat = 120
 
     var body: some View {
+        let contentWidth = max(0, (availableWidth ?? 0) - 40)
+        let analysisCardWidth = max(190, (contentWidth - 24) / 3)
+        let chartCardWidth = max(260, (contentWidth - 12) / 2)
         VStack(spacing: 12) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 12)], spacing: 12) {
-                ReverbAnalysisCard(title: "Dry", analysis: model.dryAnalysis, accentColor: accentColor)
-                ReverbAnalysisCard(title: "Impulse", analysis: model.impulseAnalysis, accentColor: accentColor)
-                ReverbAnalysisCard(title: "Rendered", analysis: model.renderedAnalysis, accentColor: accentColor)
+            HStack(spacing: 12) {
+                ReverbAnalysisCard(title: "Dry", analysis: model.dryAnalysis, accentColor: accentColor).frame(width: analysisCardWidth)
+                ReverbAnalysisCard(title: "Impulse", analysis: model.impulseAnalysis, accentColor: accentColor).frame(width: analysisCardWidth)
+                ReverbAnalysisCard(title: "Rendered", analysis: model.renderedAnalysis, accentColor: accentColor).frame(width: analysisCardWidth)
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
-                ReverbSpectrumCard(analysis: model.impulseAnalysis, accentColor: accentColor)
-                ReverbDecayCard(analysis: model.impulseAnalysis, accentColor: accentColor)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 12) {
+                ReverbSpectrumCard(analysis: model.impulseAnalysis, accentColor: accentColor, height: bottomChartHeight).frame(width: chartCardWidth)
+                ReverbDecayCard(analysis: model.impulseAnalysis, accentColor: accentColor, height: bottomChartHeight).frame(width: chartCardWidth)
+            }
+            .frame(maxWidth: .infinity, minHeight: bottomChartHeight, maxHeight: bottomChartHeight, alignment: .topLeading)
+            .background {
+                GeometryReader { geometry in
+                    let minY = geometry.frame(in: .named("detailScroll")).minY
+                    Color.clear
+                        .onAppear {
+                            updateBottomChartHeight(from: minY)
+                        }
+                        .onChange(of: minY) { nextMinY in
+                            updateBottomChartHeight(from: nextMinY)
+                        }
+                        .onChange(of: availableHeight ?? 0) { _ in
+                            updateBottomChartHeight(from: minY)
+                        }
+                }
+            }
+            .transaction { transaction in
+                transaction.animation = nil
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func updateBottomChartHeight(from minY: CGFloat) {
+        guard let availableHeight else { return }
+        let bottomPadding: CGFloat = 28
+        let nextHeight = max(92, availableHeight - minY - bottomPadding)
+        guard abs(bottomChartHeight - nextHeight) > 0.5 else { return }
+        DispatchQueue.main.async {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                bottomChartHeight = nextHeight
             }
         }
     }
@@ -829,12 +863,15 @@ private struct ReverbAnalysisCard: View {
 private struct ReverbSpectrumCard: View {
     let analysis: AudioAnalysis?
     let accentColor: Color
+    let height: CGFloat
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("IR Frequency Response").font(.headline)
-            ReverbSpectrumPlot(points: analysis?.spectrum ?? [], accentColor: accentColor).frame(height: 150)
+            ReverbSpectrumPlot(points: analysis?.spectrum ?? [], accentColor: accentColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity).padding(12)
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .interactivePanel(cornerRadius: 16, accentColor: accentColor)
     }
@@ -843,12 +880,15 @@ private struct ReverbSpectrumCard: View {
 private struct ReverbDecayCard: View {
     let analysis: AudioAnalysis?
     let accentColor: Color
+    let height: CGFloat
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("IR Energy Decay").font(.headline)
-            ReverbDecayPlot(values: analysis?.decay ?? [], accentColor: accentColor).frame(height: 150)
+            ReverbDecayPlot(values: analysis?.decay ?? [], accentColor: accentColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity).padding(12)
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .interactivePanel(cornerRadius: 16, accentColor: accentColor)
     }
@@ -893,6 +933,9 @@ private struct NativeSeriesChart: View {
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
+        .transaction { transaction in
+            transaction.animation = nil
+        }
     }
 }
 
@@ -905,6 +948,9 @@ private struct NativeSpectrumChart: View {
             LineMark(x: .value("Frequency", point.element.frequency), y: .value("dB", point.element.magnitudeDB)).foregroundStyle(accentColor)
         }
         .chartXScale(type: .log)
+        .transaction { transaction in
+            transaction.animation = nil
+        }
     }
 }
 
@@ -970,12 +1016,13 @@ final class ReverbAppDelegate: NSObject, NSApplicationDelegate {
     private func buildMainWindow() {
         let hostingController = NSHostingController(rootView: StudioView(model: model))
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1180, height: 820),
+            contentRect: NSRect(x: 0, y: 0, width: 1010, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Audio Convolution Reverb"
+        window.contentMinSize = NSSize(width: 1010, height: 820)
         if #available(macOS 11.0, *) {
             window.toolbarStyle = .unified
         }

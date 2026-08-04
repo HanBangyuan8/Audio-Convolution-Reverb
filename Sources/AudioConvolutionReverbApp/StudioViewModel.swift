@@ -56,18 +56,42 @@ final class StudioViewModel: ObservableObject {
     @Published var customReflections = 10.0
     @Published var previewSeconds = 8.0
 
-    private let database: ReverbDatabase
+    private let persistenceWorker: ReverbPersistenceWorker
+    private let runtimePlan = RuntimeFeaturePlan.current
     private var renderTask: Task<Void, Never>?
+    private var libraryRefreshTask: Task<Void, Never>?
     private var player: AVAudioPlayer?
 
     init() {
-        database = (try? ReverbDatabase()) ?? (try! ReverbDatabase(url: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("reverb.sqlite")))
+        let database = (try? ReverbDatabase()) ?? (try! ReverbDatabase(url: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("reverb.sqlite")))
+        persistenceWorker = ReverbPersistenceWorker(database: database)
         refresh()
     }
 
-    func refresh() {
-        renders = (try? database.renders(search: renderSearch, limit: 100)) ?? []
-        presets = (try? database.presets(search: presetSearch)) ?? []
+    func refresh(immediate: Bool = false) {
+        let renderSearch = renderSearch
+        let presetSearch = presetSearch
+        let renderLimit = runtimePlan.libraryRenderLimit
+        let debounceNanoseconds = runtimePlan.librarySearchDebounceNanoseconds
+        libraryRefreshTask?.cancel()
+        libraryRefreshTask = Task {
+            if !immediate, debounceNanoseconds > 0 {
+                try? await Task.sleep(nanoseconds: debounceNanoseconds)
+            }
+            guard !Task.isCancelled else { return }
+            do {
+                let snapshot = try await persistenceWorker.snapshot(
+                    renderSearch: renderSearch,
+                    presetSearch: presetSearch,
+                    renderLimit: renderLimit
+                )
+                guard !Task.isCancelled else { return }
+                renders = snapshot.renders
+                presets = snapshot.presets
+            } catch {
+                status = error.localizedDescription
+            }
+        }
     }
 
     func chooseDryAudio() {
@@ -132,31 +156,38 @@ final class StudioViewModel: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         let name = "Custom \(formatter.string(from: Date()))"
-        do {
-            _ = try database.savePreset(ReverbPreset(name: name, settings: settings))
-            refresh()
-            status = "Saved preset: \(name)"
-        } catch {
-            status = error.localizedDescription
+        let preset = ReverbPreset(name: name, settings: settings)
+        Task {
+            do {
+                try await persistenceWorker.savePreset(preset)
+                refresh()
+                status = "Saved preset: \(name)"
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
     func renamePreset(_ preset: ReverbPreset) {
         guard let name = prompt("Rename Preset", text: preset.name), !name.isEmpty else { return }
-        do {
-            try database.renamePreset(id: preset.id, name: name)
-            refresh()
-        } catch {
-            status = error.localizedDescription
+        Task {
+            do {
+                try await persistenceWorker.renamePreset(id: preset.id, name: name)
+                refresh()
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
     func deletePreset(_ preset: ReverbPreset) {
-        do {
-            try database.deletePreset(id: preset.id)
-            refresh()
-        } catch {
-            status = error.localizedDescription
+        Task {
+            do {
+                try await persistenceWorker.deletePreset(id: preset.id)
+                refresh()
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
@@ -166,11 +197,13 @@ final class StudioViewModel: ObservableObject {
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "audio-convolution-reverb-presets.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try database.exportPresets(to: url)
-            status = "Exported presets"
-        } catch {
-            status = error.localizedDescription
+        Task {
+            do {
+                try await persistenceWorker.exportPresets(to: url)
+                status = "Exported presets"
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
@@ -179,31 +212,37 @@ final class StudioViewModel: ObservableObject {
         panel.title = "Import Presets"
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try database.importPresets(from: url)
-            refresh()
-            status = "Imported presets"
-        } catch {
-            status = error.localizedDescription
+        Task {
+            do {
+                try await persistenceWorker.importPresets(from: url)
+                refresh()
+                status = "Imported presets"
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
     func renameRender(_ render: RenderRecord) {
         guard let name = prompt("Rename Render", text: render.name), !name.isEmpty else { return }
-        do {
-            try database.renameRender(id: render.id, name: name)
-            refresh()
-        } catch {
-            status = error.localizedDescription
+        Task {
+            do {
+                try await persistenceWorker.renameRender(id: render.id, name: name)
+                refresh()
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
     func deleteRender(_ render: RenderRecord) {
-        do {
-            try database.deleteRender(id: render.id)
-            refresh()
-        } catch {
-            status = error.localizedDescription
+        Task {
+            do {
+                try await persistenceWorker.deleteRender(id: render.id)
+                refresh()
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
@@ -224,19 +263,31 @@ final class StudioViewModel: ObservableObject {
         panel.nameFieldStringValue = "custom-convolution-reverb-ir.wav"
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        do {
-            let ir = ReverbDSP.createCustomImpulse(
-                sampleRate: 48_000,
-                duration: customDuration,
-                decay: customDecay,
-                tone: customTone,
-                earlyReflectionCount: Int(customReflections)
-            )
-            try AVAudioConverterIO.write(ir, to: url, type: .wav)
-            loadImpulse(url)
-            status = "Generated custom IR: \(url.lastPathComponent)"
-        } catch {
-            status = error.localizedDescription
+        let duration = customDuration
+        let decay = customDecay
+        let tone = customTone
+        let earlyReflectionCount = Int(customReflections)
+        status = "Generating custom impulse response..."
+
+        Task.detached(priority: .userInitiated) {
+            do {
+                let ir = ReverbDSP.createCustomImpulse(
+                    sampleRate: 48_000,
+                    duration: duration,
+                    decay: decay,
+                    tone: tone,
+                    earlyReflectionCount: earlyReflectionCount
+                )
+                try AVAudioConverterIO.write(ir, to: url, type: .wav)
+                await MainActor.run {
+                    self.loadImpulse(url)
+                    self.status = "Generated custom IR: \(url.lastPathComponent)"
+                }
+            } catch {
+                await MainActor.run {
+                    self.status = error.localizedDescription
+                }
+            }
         }
     }
 
@@ -268,7 +319,9 @@ final class StudioViewModel: ObservableObject {
 
         let settings = settings
         let outputURL = previewOnly ? FileManager.default.temporaryDirectory.appendingPathComponent("audio-convolution-preview.wav") : normalizedOutputURL()
-        let database = database
+        let persistenceWorker = persistenceWorker
+        let analysisPoints = runtimePlan.audioAnalysisPointBudget
+        let spectrumBins = runtimePlan.audioSpectrumBinBudget
         let previewSeconds = previewSeconds
         let exportType = exportFormat.audioType
 
@@ -300,12 +353,18 @@ final class StudioViewModel: ObservableObject {
                         sampleRate: rendered.sampleRate,
                         duration: rendered.duration
                     )
-                    _ = try database.saveRender(record)
+                    try await persistenceWorker.saveRender(record)
                 }
+
+                let renderedAnalysis = AudioAnalyzer.analyze(
+                    rendered,
+                    points: analysisPoints,
+                    spectrumBins: spectrumBins
+                )
 
                 await MainActor.run {
                     self.renderedURL = outputURL
-                    self.renderedAnalysis = AudioAnalyzer.analyze(rendered)
+                    self.renderedAnalysis = renderedAnalysis
                     self.refresh()
                     self.isRendering = false
                     self.renderProgress = 1
@@ -374,9 +433,11 @@ final class StudioViewModel: ObservableObject {
     }
 
     private func analyze(url: URL, assign: @escaping @MainActor (AudioAnalysis) -> Void) {
+        let points = runtimePlan.audioAnalysisPointBudget
+        let spectrumBins = runtimePlan.audioSpectrumBinBudget
         Task.detached(priority: .utility) {
             guard let buffer = try? AVAudioConverterIO.read(from: url) else { return }
-            let analysis = AudioAnalyzer.analyze(buffer)
+            let analysis = AudioAnalyzer.analyze(buffer, points: points, spectrumBins: spectrumBins)
             await MainActor.run { assign(analysis) }
         }
     }

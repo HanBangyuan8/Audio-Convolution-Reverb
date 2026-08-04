@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.0 - 2026-08-04
+
+Major release.
+
+- Added platform-aware audio analysis and library rendering budgets.
+- Moved SQLite library operations and completed-render analysis away from the main actor.
+- Isolated native controls and Charts content from inherited page animation transactions.
+- Made the overview's 5/3/2 card rows fill the available width and sized the bottom charts from the live detail height.
+- Removed page-level scrolling from the overview, workspace, and preset pages while keeping every control visible.
+- Reset each launch to the minimum 1100 × 820 native window size, with a 1010 × 820 macOS 12 compatibility size.
+- Reduced view invalidation and rendering work during navigation, rendering, and playback updates.
+- Preserved the existing native interface, accent behavior, and versioned motion design.
+
 ## v1.2.0 - 2026-08-04
 
 Major release.

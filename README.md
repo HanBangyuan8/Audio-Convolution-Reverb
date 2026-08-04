@@ -108,7 +108,7 @@ audio-reverb demo
 
 ```bash
 ./scripts/package-dmg.sh
-open "dist/Audio-Convolution-Reverb-v1.2.0-macOS-universal.app"
+open "dist/Audio-Convolution-Reverb-v1.3.0-macOS-universal.app"
 ```
 
 The app package script creates a universal macOS `.app`, a signed zip archive, and a DMG image.

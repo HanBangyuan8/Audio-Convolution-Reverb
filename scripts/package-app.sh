@@ -4,7 +4,7 @@ set -euo pipefail
 PRODUCT_NAME="Audio Convolution Reverb"
 CLI_PRODUCT_NAME="audio-reverb-swift"
 BUNDLE_IDENTIFIER="com.hanbangyuan.audio-convolution-reverb"
-VERSION="1.2.0"
+VERSION="1.3.0"
 CONFIGURATION="${1:-release}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -119,7 +119,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key>
     <string>$VERSION</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>3</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>NSHighResolutionCapable</key>
