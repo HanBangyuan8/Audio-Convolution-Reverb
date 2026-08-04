@@ -4,11 +4,11 @@
 
 Major release.
 
-- Rebuilt the app shell from the Latency Graph for ClashX Meta native SwiftUI baseline.
-- Moved primary file, render, preview, and export actions into a native toolbar while keeping navigation and status in the sidebar.
-- Added responsive workspace, analysis, and statistics layouts that adapt without clipping at narrower window sizes.
+- Rebuilt the interface around a polished native SwiftUI app shell.
+- Moved primary file, render, preview, and export actions into the toolbar for a more convenient workflow.
+- Added responsive workspace, analysis, and statistics layouts that avoid clipping at narrower window sizes.
 - Unified accent colors, motion behavior, launch transitions, app icon handling, and repository packaging conventions.
-- Lowered the runtime requirement to macOS 12 while preserving universal Apple Silicon and Intel packaging.
+- Lowered the runtime requirement to macOS 12 and retained universal Apple Silicon and Intel support.
 
 ## v1.1.2 - 2026-05-30
 
