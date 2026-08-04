@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.0 - 2026-08-04
+
+Major release.
+
+- Rebuilt the app shell from the Latency Graph for ClashX Meta native SwiftUI baseline.
+- Moved primary file, render, preview, and export actions into a native toolbar while keeping navigation and status in the sidebar.
+- Added responsive workspace, analysis, and statistics layouts that adapt without clipping at narrower window sizes.
+- Unified accent colors, motion behavior, launch transitions, app icon handling, and repository packaging conventions.
+- Lowered the runtime requirement to macOS 12 while preserving universal Apple Silicon and Intel packaging.
+
 ## v1.1.2 - 2026-05-30
 
 Patch release.

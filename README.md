@@ -1,6 +1,6 @@
 # Audio Convolution Reverb
 
-![macOS](https://img.shields.io/badge/macOS-13%2B-blue?style=flat)
+![macOS](https://img.shields.io/badge/macOS-12%2B-blue?style=flat)
 ![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange?style=flat)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-147EFB?style=flat)
 ![GitHub release](https://img.shields.io/github/v/release/HanBangyuan8/Audio-Convolution-Reverb?style=flat)
@@ -10,7 +10,7 @@
 A native macOS convolution reverb studio with a SwiftUI front end, Swift FFT audio engine, SQLite history database, and the original notebook algorithm preserved as Python source.
 
 <p align="center">
-  <img src="assets/app-icon/app-icon.png" alt="Audio Convolution Reverb app icon" width="160">
+  <img src="Resources/AppIcon.png" alt="Audio Convolution Reverb app icon" width="160">
 </p>
 
 ## Features
@@ -44,7 +44,7 @@ These two images were extracted from the original notebook and kept as early pro
 ### Latest Version
 
 - Apple M chips and Intel processors
-- Runtime requirement: macOS 13+
+- Runtime requirement: macOS 12+
 - Xcode 15+ or Swift 5.9+
 - Python 3.10+ for the preserved original CLI workflow
 - Example audio files are included for demo rendering and impulse-response extraction
@@ -107,8 +107,8 @@ audio-reverb demo
 ## Package
 
 ```bash
-./scripts/package-app.sh
-open "dist/Audio Convolution Reverb.app"
+./scripts/package-dmg.sh
+open "dist/Audio-Convolution-Reverb-v1.2.0-macOS-universal.app"
 ```
 
 The app package script creates a universal macOS `.app`, a signed zip archive, and a DMG image.

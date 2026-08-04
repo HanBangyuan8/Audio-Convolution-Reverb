@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "Audio Convolution Reverb",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v12)
     ],
     products: [
         .library(name: "AudioConvolutionReverbCore", targets: ["AudioConvolutionReverbCore"]),

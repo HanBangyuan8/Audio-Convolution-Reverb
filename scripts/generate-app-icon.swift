@@ -6,6 +6,7 @@ let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let resources = root.appendingPathComponent("Resources", isDirectory: true)
 let iconset = resources.appendingPathComponent("AppIcon.iconset", isDirectory: true)
 let output = resources.appendingPathComponent("AppIcon.icns")
+let readmePreview = resources.appendingPathComponent("AppIcon.png")
 let fileManager = FileManager.default
 
 try fileManager.createDirectory(at: resources, withIntermediateDirectories: true)
@@ -25,38 +26,42 @@ let variants: [(Int, String)] = [
     (1024, "icon_512x512@2x.png")
 ]
 
-let artworkScale: CGFloat = 832.0 / 1024.0
-
 func writeIcon(size: Int, name: String) throws {
     let rect = NSRect(x: 0, y: 0, width: size, height: size)
-    let image = NSImage(size: rect.size)
-    image.lockFocus()
+    guard let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: size,
+        pixelsHigh: size,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        throw NSError(domain: "AppIcon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to allocate bitmap \(name)"])
+    }
 
-    let artworkSize = CGFloat(size) * artworkScale
-    let iconRect = NSRect(
-        x: (CGFloat(size) - artworkSize) / 2,
-        y: (CGFloat(size) - artworkSize) / 2,
-        width: artworkSize,
-        height: artworkSize
-    )
-    let outlineWidth = max(1, CGFloat(size) * 0.012)
-    let backgroundRect = iconRect.insetBy(dx: outlineWidth / 2, dy: outlineWidth / 2)
-    let background = NSBezierPath(
-        roundedRect: backgroundRect,
-        xRadius: backgroundRect.width * 0.22,
-        yRadius: backgroundRect.height * 0.22
-    )
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+    NSGraphicsContext.current?.cgContext.clear(CGRect(x: 0, y: 0, width: size, height: size))
+
+    let iconMargin = CGFloat(size) * (96.0 / 1024.0)
+    let corner = CGFloat(size) * 0.19
+    let bodyRect = rect.insetBy(dx: iconMargin, dy: iconMargin)
+    let body = NSBezierPath(roundedRect: bodyRect, xRadius: corner, yRadius: corner)
     NSGradient(colors: [
         NSColor(calibratedRed: 0.05, green: 0.13, blue: 0.18, alpha: 1),
         NSColor(calibratedRed: 0.02, green: 0.46, blue: 0.58, alpha: 1),
         NSColor(calibratedRed: 0.93, green: 0.35, blue: 0.18, alpha: 1)
-    ])?.draw(in: background, angle: 135)
+    ])?.draw(in: body, angle: 135)
 
-    NSColor.white.withAlphaComponent(0.22).setStroke()
-    background.lineWidth = outlineWidth
-    background.stroke()
+    NSColor.white.withAlphaComponent(0.20).setStroke()
+    body.lineWidth = max(1, CGFloat(size) * 0.012)
+    body.stroke()
 
-    let waveRect = iconRect.insetBy(dx: iconRect.width * 0.20, dy: iconRect.height * 0.27)
+    let waveRect = bodyRect.insetBy(dx: CGFloat(size) * 0.18, dy: CGFloat(size) * 0.20)
     let centerY = waveRect.midY
     let wave = NSBezierPath()
     wave.move(to: NSPoint(x: waveRect.minX, y: centerY))
@@ -92,14 +97,10 @@ func writeIcon(size: Int, name: String) throws {
     echo.lineWidth = max(1, CGFloat(size) * 0.026)
     echo.stroke()
 
-    image.unlockFocus()
+    NSGraphicsContext.restoreGraphicsState()
 
-    guard
-        let tiff = image.tiffRepresentation,
-        let bitmap = NSBitmapImageRep(data: tiff),
-        let png = bitmap.representation(using: .png, properties: [:])
-    else {
-        throw NSError(domain: "AppIcon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to render icon \(name)"])
+    guard let png = bitmap.representation(using: .png, properties: [:]) else {
+        throw NSError(domain: "AppIcon", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unable to render icon \(name)"])
     }
     try png.write(to: iconset.appendingPathComponent(name))
 }
@@ -109,14 +110,38 @@ for variant in variants {
 }
 
 try? fileManager.removeItem(at: output)
-let process = Process()
-process.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
-process.arguments = ["-c", "icns", iconset.path, "-o", output.path]
-try process.run()
-process.waitUntilExit()
-guard process.terminationStatus == 0 else {
-    throw NSError(domain: "AppIcon", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: "iconutil failed"])
+try? fileManager.removeItem(at: readmePreview)
+try fileManager.copyItem(at: iconset.appendingPathComponent("icon_512x512@2x.png"), to: readmePreview)
+
+let icnsChunks: [(String, String)] = [
+    ("icp4", "icon_16x16.png"),
+    ("ic11", "icon_16x16@2x.png"),
+    ("icp5", "icon_32x32.png"),
+    ("ic12", "icon_32x32@2x.png"),
+    ("ic07", "icon_128x128.png"),
+    ("ic13", "icon_128x128@2x.png"),
+    ("ic08", "icon_256x256.png"),
+    ("ic14", "icon_256x256@2x.png"),
+    ("ic09", "icon_512x512.png"),
+    ("ic10", "icon_512x512@2x.png")
+]
+
+func appendBigEndian(_ value: UInt32, to data: inout Data) {
+    var bigEndian = value.bigEndian
+    withUnsafeBytes(of: &bigEndian) { data.append(contentsOf: $0) }
 }
 
-try? fileManager.removeItem(at: iconset)
+var chunks = Data()
+for (type, fileName) in icnsChunks {
+    let png = try Data(contentsOf: iconset.appendingPathComponent(fileName))
+    chunks.append(type.data(using: .ascii)!)
+    appendBigEndian(UInt32(png.count + 8), to: &chunks)
+    chunks.append(png)
+}
+
+var icns = Data("icns".utf8)
+appendBigEndian(UInt32(chunks.count + 8), to: &icns)
+icns.append(chunks)
+try icns.write(to: output, options: .atomic)
+
 print(output.path)
